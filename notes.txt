@@ -1,0 +1,48 @@
+VectorDisplay
+    meshPool
+        Rather than re-creating line meshes all the time, we should just pre-construct a bunch at the outset. The geometry is always just
+        a plane which gets scaled (on x for length, y for thickness) and rotated based on the line it's being used to represent.
+
+        OR: might be able to even get rid of the whole Line concept and just use a particle system, e.g.: https://github.com/mrdoob/three.js/blob/master/examples/webgl_gpu_particle_system.html
+
+        BUT: it seems iffy that we can get something really high quality from particles (they always have an identifiable kinda look to them). So maybe the best thing is to use a shared
+            BufferGeometry across all line objects, and have individual Line objects hold indices into the various attributes they need to modify, e.g.: https://threejs.org/examples/#webgl_gpgpu_birds
+    lineList
+        Whenever the beam starts moving to a new destination, a new Line is created.
+    addBeam(id, color)
+    queueBeamDestination(position, travelTime)
+    queueSecondaryBeamDestination(beamId, position, travelTime)
+    update(deltaTime)
+        calls update(deltaTime) on all Lines. If any are past expiration point, removes them.
+
+
+Beam
+    currentLine
+    color
+    intensityScale
+    decayFunction (Returns value between 1 and zero and takes in lineExistence time)
+    update(deltaTime)
+        move to new position, call 'extendTo(position)' on currentLine
+
+Line
+    mesh
+        Uniforms:
+            color
+            intensityScale
+            intensityFunc (just a name here, it's hard coded. These take in a time (or completionRatio) and give back an intensity)
+            decayFunc (just a name too, hard coded also)
+            completionRatio (based on start,cur,end time)
+    texture (this is an idea for an alternate scheme to just passing all info to shader as uniforms)
+        1D texture procedurally generated using beam color, intensity, decay function, etc.
+    creationTime
+    timeAliveFunc
+        for a proportion across the length of the line, how long has that point been alive? (maybe this will be in shader)
+    currentTime
+    finishTime
+    startPoint
+    endPoint // At any point in time we render from startPoint to endPoint. When the line is done being drawn, endPoint === finalEndPoint
+    finalEndPoint
+    creatorBeam
+    extendTo(position)
+    update(deltaTime)
+        Sets expired flag to true once all parts of the line have faded out
