@@ -1,48 +1,23 @@
+A lot of the ideas here will have to change because: the decay time for lines needs to be less than 1 frame (i.e. < ~15ms), so it will not be possible to see it animate. Given that, I think a better way of structuring this is to go with a frame-based approach: each frame we give the VectorDisplay a list instructions: points to go to, turn beam on or off, change color, etc. and it executes all of those instructions each frame and then clears the display at the beginning of the next frame.
+
+User scripts can hook in by implementing two methods: initialize() and getInstructions(deltaTime) (getIntructions is scalled every frame)
+
+Probably the best way of handling rendering is to implement beam as a modified version of the GPU particle system at https://github.com/mrdoob/three.js/blob/master/examples/webgl_gpu_particle_system.html —the idea behind the modifications being that the rate at which it dispenses particles is based on distance travelled by the emitter rather than time elapsed. So we
+can, for instance, say that it should emit particles at a rate of 15/unit of space, and then move it to the next position; if it doesn't form a line with good density, we adjust that rate.
+
+Coordinates should be 3D: doing a hologram display is much more interesting.
+
+A good demo would be to use it to render something like distance functions by: splitting the scene into a 3d voxel grid, taking samples of each 'object' (function) at each cell. Rather than using distance functions, try using 'vector functions' which return vectors from a given point to the nearest point on an object's surface. Not sure this will really be feasible, but if so it might be an interesting general approach for rendering functional objects. More specifically the sampling looks like (for each cell): take the point at the center, pass it into each distance function, take the vector with the shortest length, add it to the cell's center point (this gives you a point on the object's surface). These surface points becomes points in a path which will be rendered by the vector display (should create an interesting variation on a wireframe display; will probably look quite cool with rotating 3D objects, maybe with some noise distortion, especially if it's possible to still use boolean/combining functions on the vector functions).
+
+A good optimization for raymarching or this kind of voxel rendering would be for each cell (or pixel in raymarching—henceforth also referred to as a cell) to store a list of objects which it should sample. This is important if you consider what a performance problem it was with raymarching to render many individual functions (rather than repeating them with a modulo operator or something). One way of going about it would be to find bounding boxes for the objects described by the functions; in the case of raymarching, project that to screen and all pixels covered need to check against the associated object. If multiple projected boxes overlap, we form new boxes which encompass both which were overlapping. If we make the initial boxes bigger than the actual size of each object, then we can allow for object blending operators while still using this optimization.
+
+A simpler first demo would be to just read in some animated 3D model file and get path points by reading its geometry's position attribute.
+
 VectorDisplay
-    meshPool
-        Rather than re-creating line meshes all the time, we should just pre-construct a bunch at the outset. The geometry is always just
-        a plane which gets scaled (on x for length, y for thickness) and rotated based on the line it's being used to represent.
-
-        OR: might be able to even get rid of the whole Line concept and just use a particle system, e.g.: https://github.com/mrdoob/three.js/blob/master/examples/webgl_gpu_particle_system.html
-
-        BUT: it seems iffy that we can get something really high quality from particles (they always have an identifiable kinda look to them). So maybe the best thing is to use a shared
-            BufferGeometry across all line objects, and have individual Line objects hold indices into the various attributes they need to modify, e.g.: https://threejs.org/examples/#webgl_gpgpu_birds
-    lineList
-        Whenever the beam starts moving to a new destination, a new Line is created.
-    addBeam(id, color)
-    queueBeamDestination(position, travelTime)
-    queueSecondaryBeamDestination(beamId, position, travelTime)
     update(deltaTime)
-        calls update(deltaTime) on all Lines. If any are past expiration point, removes them.
 
 
 Beam
-    currentLine
     color
     intensityScale
-    decayFunction (Returns value between 1 and zero and takes in lineExistence time)
     update(deltaTime)
-        move to new position, call 'extendTo(position)' on currentLine
-
-Line
-    mesh
-        Uniforms:
-            color
-            intensityScale
-            intensityFunc (just a name here, it's hard coded. These take in a time (or completionRatio) and give back an intensity)
-            decayFunc (just a name too, hard coded also)
-            completionRatio (based on start,cur,end time)
-    texture (this is an idea for an alternate scheme to just passing all info to shader as uniforms)
-        1D texture procedurally generated using beam color, intensity, decay function, etc.
-    creationTime
-    timeAliveFunc
-        for a proportion across the length of the line, how long has that point been alive? (maybe this will be in shader)
-    currentTime
-    finishTime
-    startPoint
-    endPoint // At any point in time we render from startPoint to endPoint. When the line is done being drawn, endPoint === finalEndPoint
-    finalEndPoint
-    creatorBeam
-    extendTo(position)
-    update(deltaTime)
-        Sets expired flag to true once all parts of the line have faded out
