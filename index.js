@@ -26,6 +26,12 @@ class BasicCanvas {
 	}
 
 	initScene() {
+		const geometry = new THREE.BoxBufferGeometry(10, 10, 10);
+		const material = new THREE.MeshStandardMaterial({color: 0x556677, metalness: 0.6, roughness: 0.4, transparent: true, opacity: 0.25});
+		this.testCube = new THREE.Mesh(geometry, material);
+		this.scene.add(this.testCube);
+		this.updateCubeDimensions();
+
 		this.laser = new Laser();
 		this.scene.add(this.laser.obj3d);
 	}
@@ -46,6 +52,7 @@ class BasicCanvas {
 
 	    this.scene = new THREE.Scene();
 	    this.camera = new THREE.PerspectiveCamera( 45, this.state.canvasWidth / this.state.canvasHeight, this.state.cameraNear, this.state.cameraFar );
+	    this.camera.position.z = 20;
 	    this.scene.add(this.camera);
 
 	    const lightTarget = new THREE.Object3D();
@@ -97,5 +104,12 @@ class BasicCanvas {
 	    this.renderer.setSize( this.state.canvasWidth, this.state.canvasHeight );
 	    this.camera.aspect = this.state.canvasWidth / this.state.canvasHeight;
 	    this.camera.updateProjectionMatrix();
+
+	    this.updateCubeDimensions();
+	}
+
+	updateCubeDimensions() {
+		const aspectRatio = this.camera.aspect;
+		this.testCube.scale.x = aspectRatio;
 	}
 }
