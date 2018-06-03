@@ -41,7 +41,6 @@ class Laser {
 
 		this.obj3d = new THREE.Object3D();
 		this.obj3d.add( this.particleSystem );
-		this.obj3d.position.z = -30;
 
 		this.tick = 0;
 	}

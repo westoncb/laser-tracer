@@ -2,6 +2,7 @@ const THREE = require('three');
 const Stats = require('stats-js');
 const InputTransformer = require('./inputTransformer');
 const Laser = require('./laser');
+const OrbitControls = require('three-orbit-controls')(THREE)
 
 window.onload = () => {
 	const basicCanvas = new BasicCanvas('canvas-container');
@@ -26,7 +27,7 @@ class BasicCanvas {
 
 	initScene() {
 		const geometry = new THREE.BoxBufferGeometry(10, 10, 10);
-		const material = new THREE.MeshStandardMaterial({color: 0x556677, metalness: 0.6, roughness: 0.4, transparent: true, opacity: 0.25});
+		const material = new THREE.MeshStandardMaterial({color: 0xccddee, metalness: 0.6, roughness: 0.4, transparent: true, opacity: 0.25, depthWrite: false});
 		this.testCube = new THREE.Mesh(geometry, material);
 		this.scene.add(this.testCube);
 		this.updateCubeDimensions();
@@ -52,7 +53,16 @@ class BasicCanvas {
 	    this.scene = new THREE.Scene();
 	    this.camera = new THREE.PerspectiveCamera( 45, this.state.canvasWidth / this.state.canvasHeight, this.state.cameraNear, this.state.cameraFar );
 	    this.camera.position.z = 20;
+	    this.camera.lookAt(new THREE.Vector3(0, 0, 0));
 	    this.scene.add(this.camera);
+
+	    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+	    this.controls.enableDamping = true;
+		this.controls.dampingFactor = 0.25;
+		this.controls.screenSpacePanning = false;
+		this.controls.minDistance = 1;
+		this.controls.maxDistance = 200;
+		this.controls.maxPolarAngle = Math.PI / 2;
 
 	    const lightTarget = new THREE.Object3D();
 	    lightTarget.position.set(-1, -1, -10);
@@ -82,6 +92,8 @@ class BasicCanvas {
 	    this.laser.update(this.clock.getDelta());
 	    
 	    requestAnimationFrame( this.animate.bind(this) );
+
+	    this.controls.update();
 
 	    this.renderer.render( this.scene, this.camera );
 
