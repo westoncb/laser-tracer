@@ -2,7 +2,6 @@ const THREE = require('three');
 const Stats = require('stats-js');
 const InputTransformer = require('./inputTransformer');
 const Laser = require('./laser');
-const TrackballControls = require('three-trackballcontrols');
 
 window.onload = () => {
 	const basicCanvas = new BasicCanvas('canvas-container');
@@ -72,12 +71,6 @@ class BasicCanvas {
 
 	    window.addEventListener( 'resize', this.onWindowResize.bind(this), false );
 
-	    this.controls = new TrackballControls( this.camera, this.renderer.domElement );
-	    this.controls.rotateSpeed = 5.0;
-	    this.controls.zoomSpeed = 2.2;
-	    this.controls.panSpeed = 1;
-	    this.controls.dynamicDampingFactor = 0.3;
-
 	    this.inputTransformer = new InputTransformer(this.renderer.domElement, this.camera, this.scene);
 
 	    this.clock = new THREE.Clock();
@@ -85,8 +78,6 @@ class BasicCanvas {
 
 	animate(time) {
 	    this.stats.begin();
-
-	    this.controls.update();
 
 	    this.laser.update(this.clock.getDelta());
 	    
