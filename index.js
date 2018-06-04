@@ -2,7 +2,7 @@ const THREE = require('three');
 const Stats = require('stats-js');
 const InputTransformer = require('./inputTransformer');
 const Laser = require('./laser');
-const OrbitControls = require('three-orbit-controls')(THREE)
+const OrbitControls = require('three-orbit-controls')(THREE);
 
 window.onload = () => {
 	const basicCanvas = new BasicCanvas('canvas-container');
@@ -27,7 +27,7 @@ class BasicCanvas {
 
 	initScene() {
 		const geometry = new THREE.BoxBufferGeometry(10, 10, 10);
-		const material = new THREE.MeshStandardMaterial({color: 0xccddee, metalness: 0.6, roughness: 0.4, transparent: true, opacity: 0.25, depthWrite: false});
+		const material = new THREE.MeshStandardMaterial({color: 0xccddee, metalness: 0.6, roughness: 0.4, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide});
 		this.testCube = new THREE.Mesh(geometry, material);
 		this.scene.add(this.testCube);
 		this.updateCubeDimensions();
