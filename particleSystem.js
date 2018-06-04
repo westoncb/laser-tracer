@@ -14,20 +14,19 @@ class ParticleSystem extends THREE.Object3D {
 
 		this.options = options || {};
 
-		this.randIndex = 0;
-
 		// parse options and use defaults
 
 		this.PARTICLE_COUNT = this.options.maxParticles || 1000000;
 		this.PARTICLE_CONTAINERS = this.options.containerCount || 1;
 
-		this.PARTICLE_NOISE_TEXTURE = this.options.particleNoiseTex || null;
 		this.PARTICLE_SPRITE_TEXTURE = this.options.particleSpriteTex || null;
 
 		this.PARTICLES_PER_CONTAINER = Math.ceil( this.PARTICLE_COUNT / this.PARTICLE_CONTAINERS );
 		this.PARTICLE_CURSOR = 0;
 		this.time = 0;
 		this.particleContainers = [];
+
+		this.randIndex = 0;
 		this.rand = [];
 
 		// preload a million random numbers
@@ -42,9 +41,6 @@ class ParticleSystem extends THREE.Object3D {
 
 		let textureLoader = new THREE.TextureLoader();
 
-		this.particleNoiseTex = this.PARTICLE_NOISE_TEXTURE || textureLoader.load( 'textures/perlin-512.png' );
-		this.particleNoiseTex.wrapS = this.particleNoiseTex.wrapT = THREE.RepeatWrapping;
-
 		this.particleSpriteTex = this.PARTICLE_SPRITE_TEXTURE || textureLoader.load( 'textures/particle2.png' );
 		this.particleSpriteTex.wrapS = this.particleSpriteTex.wrapT = THREE.RepeatWrapping;
 
@@ -55,9 +51,6 @@ class ParticleSystem extends THREE.Object3D {
 				},
 				'uScale': {
 					value: 1.0
-				},
-				'tNoise': {
-					value: this.particleNoiseTex
 				},
 				'tSprite': {
 					value: this.particleSpriteTex
@@ -81,12 +74,6 @@ class ParticleSystem extends THREE.Object3D {
 		this.init();
 	}
 
-	random() {
-
-		return ++ this.randIndex >= this.rand.length ? this.rand[ this.randIndex = 1 ] : this.rand[ this.randIndex ];
-
-	}
-
 	init() {
 
 		for ( let i = 0; i < this.PARTICLE_CONTAINERS; i ++ ) {
@@ -96,6 +83,12 @@ class ParticleSystem extends THREE.Object3D {
 			this.add( c );
 
 		}
+
+	}
+
+	random() {
+
+		return ++ this.randIndex >= this.rand.length ? this.rand[ this.randIndex = 1 ] : this.rand[ this.randIndex ];
 
 	}
 
@@ -128,7 +121,6 @@ class ParticleSystem extends THREE.Object3D {
 	dispose() {
 
 		this.particleShaderMat.dispose();
-		this.particleNoiseTex.dispose();
 		this.particleSpriteTex.dispose();
 
 		for ( let i = 0; i < this.PARTICLE_CONTAINERS; i ++ ) {
@@ -143,12 +135,9 @@ class ParticleSystem extends THREE.Object3D {
 		const vertexShader = `
 			uniform float uTime;
 			uniform float uScale;
-			uniform sampler2D tNoise;
 
 			attribute vec3 positionStart;
 			attribute float startTime;
-			attribute vec3 velocity;
-			attribute float turbulence;
 			attribute vec3 color;
 			attribute float size;
 			attribute float lifeTime;
@@ -162,47 +151,20 @@ class ParticleSystem extends THREE.Object3D {
 
 				vColor = vec4( color, 1.0 );
 
-				// convert our velocity back into a value we can use
-
-				vec3 newPosition;
-				vec3 v;
-
 				float timeElapsed = uTime - startTime;
 
 				lifeLeft = 1.0 - ( timeElapsed / lifeTime );
 
 				gl_PointSize = ( uScale * size ) * lifeLeft;
 
-				v.x = ( velocity.x - 0.5 ) * 3.0;
-				v.y = ( velocity.y - 0.5 ) * 3.0;
-				v.z = ( velocity.z - 0.5 ) * 3.0;
-
-				newPosition = positionStart + ( v * 10.0 ) * timeElapsed;
-
-				vec3 noise = texture2D( tNoise, vec2( newPosition.x * 0.015 + ( uTime * 0.05 ), newPosition.y * 0.02 + ( uTime * 0.015 ) ) ).rgb;
-				vec3 noiseVel = ( noise.rgb - 0.5 ) * 30.0;
-
-				newPosition = mix( newPosition, newPosition + vec3( noiseVel * ( turbulence * 5.0 ) ), ( timeElapsed / lifeTime ) );
-
-				if( v.y > 0. && v.y < .05 ) {
-
-					lifeLeft = 0.0;
-
-				}
-
-				if( v.x < - 1.45 ) {
-
-					lifeLeft = 0.0;
-
-				}
 
 				if( timeElapsed > 0.0 ) {
 
-					gl_Position = projectionMatrix * modelViewMatrix * vec4( newPosition, 1.0 );
+					gl_Position = projectionMatrix * modelViewMatrix * vec4( positionStart, 1.0 );
 
 				} else {
 
-					gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+					gl_Position = projectionMatrix * modelViewMatrix * vec4( positionStart, 1.0 );
 					lifeLeft = 0.0;
 					gl_PointSize = 0.;
 
@@ -274,8 +236,6 @@ class ParticleContainer extends THREE.Object3D {
 		this.particleShaderGeo.addAttribute( 'position', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT * 3 ), 3 ).setDynamic( true ) );
 		this.particleShaderGeo.addAttribute( 'positionStart', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT * 3 ), 3 ).setDynamic( true ) );
 		this.particleShaderGeo.addAttribute( 'startTime', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT ), 1 ).setDynamic( true ) );
-		this.particleShaderGeo.addAttribute( 'velocity', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT * 3 ), 3 ).setDynamic( true ) );
-		this.particleShaderGeo.addAttribute( 'turbulence', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT ), 1 ).setDynamic( true ) );
 		this.particleShaderGeo.addAttribute( 'color', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT * 3 ), 3 ).setDynamic( true ) );
 		this.particleShaderGeo.addAttribute( 'size', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT ), 1 ).setDynamic( true ) );
 		this.particleShaderGeo.addAttribute( 'lifeTime', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT ), 1 ).setDynamic( true ) );
@@ -285,7 +245,6 @@ class ParticleContainer extends THREE.Object3D {
 		this.particleShaderMat = this.particleSystem.particleShaderMat;
 
 		this._position = new THREE.Vector3();
-		this._velocity = new THREE.Vector3();
 		this._color = new THREE.Color(0xffffff);
 
 		this.init();
@@ -295,8 +254,6 @@ class ParticleContainer extends THREE.Object3D {
 
 		let positionStartAttribute = this.particleShaderGeo.getAttribute( 'positionStart' );
 		let startTimeAttribute = this.particleShaderGeo.getAttribute( 'startTime' );
-		let velocityAttribute = this.particleShaderGeo.getAttribute( 'velocity' );
-		let turbulenceAttribute = this.particleShaderGeo.getAttribute( 'turbulence' );
 		let colorAttribute = this.particleShaderGeo.getAttribute( 'color' );
 		let sizeAttribute = this.particleShaderGeo.getAttribute( 'size' );
 		let lifeTimeAttribute = this.particleShaderGeo.getAttribute( 'lifeTime' );
@@ -306,17 +263,10 @@ class ParticleContainer extends THREE.Object3D {
 		// setup reasonable default values for all arguments
 
 		const position = options.position !== undefined ? this._position.copy( options.position ) : this._position;
-		const velocity = options.velocity !== undefined ? this._velocity.copy( options.velocity ) : this._velocity;
 		const color = options.color !== undefined ? this._color.set( options.color ) : this._color;
 
-		let positionRandomness = options.positionRandomness !== undefined ? options.positionRandomness : 0;
-		let velocityRandomness = options.velocityRandomness !== undefined ? options.velocityRandomness : 0;
-		let colorRandomness = options.colorRandomness !== undefined ? options.colorRandomness : 1;
-		let turbulence = options.turbulence !== undefined ? options.turbulence : 1;
 		let lifetime = options.lifetime !== undefined ? options.lifetime : 5;
 		let size = options.size !== undefined ? options.size : 10;
-		let sizeRandomness = options.sizeRandomness !== undefined ? options.sizeRandomness : 0;
-		let smoothPosition = options.smoothPosition !== undefined ? options.smoothPosition : false;
 
 		if ( this.DPR !== undefined ) size *= this.DPR;
 
@@ -324,50 +274,19 @@ class ParticleContainer extends THREE.Object3D {
 
 		// position
 
-		positionStartAttribute.array[ i * 3 + 0 ] = position.x + ( this.particleSystem.random() * positionRandomness );
-		positionStartAttribute.array[ i * 3 + 1 ] = position.y + ( this.particleSystem.random() * positionRandomness );
-		positionStartAttribute.array[ i * 3 + 2 ] = position.z + ( this.particleSystem.random() * positionRandomness );
-
-		if ( smoothPosition === true ) {
-
-			positionStartAttribute.array[ i * 3 + 0 ] += - ( velocity.x * this.particleSystem.random() );
-			positionStartAttribute.array[ i * 3 + 1 ] += - ( velocity.y * this.particleSystem.random() );
-			positionStartAttribute.array[ i * 3 + 2 ] += - ( velocity.z * this.particleSystem.random() );
-
-		}
-
-		// velocity
-
-		let maxVel = 2;
-
-		let velX = velocity.x + this.particleSystem.random() * velocityRandomness;
-		let velY = velocity.y + this.particleSystem.random() * velocityRandomness;
-		let velZ = velocity.z + this.particleSystem.random() * velocityRandomness;
-
-		velX = THREE.Math.clamp( ( velX - ( - maxVel ) ) / ( maxVel - ( - maxVel ) ), 0, 1 );
-		velY = THREE.Math.clamp( ( velY - ( - maxVel ) ) / ( maxVel - ( - maxVel ) ), 0, 1 );
-		velZ = THREE.Math.clamp( ( velZ - ( - maxVel ) ) / ( maxVel - ( - maxVel ) ), 0, 1 );
-
-		velocityAttribute.array[ i * 3 + 0 ] = velX;
-		velocityAttribute.array[ i * 3 + 1 ] = velY;
-		velocityAttribute.array[ i * 3 + 2 ] = velZ;
-
-		// color
-
-		color.r = THREE.Math.clamp( color.r + this.particleSystem.random() * colorRandomness, 0, 1 );
-		color.g = THREE.Math.clamp( color.g + this.particleSystem.random() * colorRandomness, 0, 1 );
-		color.b = THREE.Math.clamp( color.b + this.particleSystem.random() * colorRandomness, 0, 1 );
+		positionStartAttribute.array[ i * 3 + 0 ] = position.x;
+		positionStartAttribute.array[ i * 3 + 1 ] = position.y;
+		positionStartAttribute.array[ i * 3 + 2 ] = position.z;
 
 		colorAttribute.array[ i * 3 + 0 ] = color.r;
 		colorAttribute.array[ i * 3 + 1 ] = color.g;
 		colorAttribute.array[ i * 3 + 2 ] = color.b;
 
-		// turbulence, size, lifetime and starttime
+		// size, lifetime and starttime
 
-		turbulenceAttribute.array[ i ] = turbulence;
-		sizeAttribute.array[ i ] = size + this.particleSystem.random() * sizeRandomness;
+		sizeAttribute.array[ i ] = size;
 		lifeTimeAttribute.array[ i ] = lifetime;
-		startTimeAttribute.array[ i ] = this.time + this.particleSystem.random() * 2e-2;
+		startTimeAttribute.array[ i ] = this.time + this.particleSystem.random() * 5e-2;
 
 		// offset
 
@@ -416,8 +335,6 @@ class ParticleContainer extends THREE.Object3D {
 
 			let positionStartAttribute = this.particleShaderGeo.getAttribute( 'positionStart' );
 			let startTimeAttribute = this.particleShaderGeo.getAttribute( 'startTime' );
-			let velocityAttribute = this.particleShaderGeo.getAttribute( 'velocity' );
-			let turbulenceAttribute = this.particleShaderGeo.getAttribute( 'turbulence' );
 			let colorAttribute = this.particleShaderGeo.getAttribute( 'color' );
 			let sizeAttribute = this.particleShaderGeo.getAttribute( 'size' );
 			let lifeTimeAttribute = this.particleShaderGeo.getAttribute( 'lifeTime' );
@@ -426,16 +343,12 @@ class ParticleContainer extends THREE.Object3D {
 
 				positionStartAttribute.updateRange.offset = this.offset * positionStartAttribute.itemSize;
 				startTimeAttribute.updateRange.offset = this.offset * startTimeAttribute.itemSize;
-				velocityAttribute.updateRange.offset = this.offset * velocityAttribute.itemSize;
-				turbulenceAttribute.updateRange.offset = this.offset * turbulenceAttribute.itemSize;
 				colorAttribute.updateRange.offset = this.offset * colorAttribute.itemSize;
 				sizeAttribute.updateRange.offset = this.offset * sizeAttribute.itemSize;
 				lifeTimeAttribute.updateRange.offset = this.offset * lifeTimeAttribute.itemSize;
 
 				positionStartAttribute.updateRange.count = this.count * positionStartAttribute.itemSize;
 				startTimeAttribute.updateRange.count = this.count * startTimeAttribute.itemSize;
-				velocityAttribute.updateRange.count = this.count * velocityAttribute.itemSize;
-				turbulenceAttribute.updateRange.count = this.count * turbulenceAttribute.itemSize;
 				colorAttribute.updateRange.count = this.count * colorAttribute.itemSize;
 				sizeAttribute.updateRange.count = this.count * sizeAttribute.itemSize;
 				lifeTimeAttribute.updateRange.count = this.count * lifeTimeAttribute.itemSize;
@@ -444,8 +357,6 @@ class ParticleContainer extends THREE.Object3D {
 
 				positionStartAttribute.updateRange.offset = 0;
 				startTimeAttribute.updateRange.offset = 0;
-				velocityAttribute.updateRange.offset = 0;
-				turbulenceAttribute.updateRange.offset = 0;
 				colorAttribute.updateRange.offset = 0;
 				sizeAttribute.updateRange.offset = 0;
 				lifeTimeAttribute.updateRange.offset = 0;
@@ -453,8 +364,6 @@ class ParticleContainer extends THREE.Object3D {
 				// Use -1 to update the entire buffer, see #11476
 				positionStartAttribute.updateRange.count = - 1;
 				startTimeAttribute.updateRange.count = - 1;
-				velocityAttribute.updateRange.count = - 1;
-				turbulenceAttribute.updateRange.count = - 1;
 				colorAttribute.updateRange.count = - 1;
 				sizeAttribute.updateRange.count = - 1;
 				lifeTimeAttribute.updateRange.count = - 1;
@@ -463,8 +372,6 @@ class ParticleContainer extends THREE.Object3D {
 
 			positionStartAttribute.needsUpdate = true;
 			startTimeAttribute.needsUpdate = true;
-			velocityAttribute.needsUpdate = true;
-			turbulenceAttribute.needsUpdate = true;
 			colorAttribute.needsUpdate = true;
 			sizeAttribute.needsUpdate = true;
 			lifeTimeAttribute.needsUpdate = true;
