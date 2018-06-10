@@ -1,6 +1,7 @@
 const ParticleSystem = require('./particleSystem');
 const dat = require('dat.GUI');
 const THREE = require('three');
+const C = require('./C'); // constants
 
 class Laser {
 	constructor() {
@@ -13,6 +14,8 @@ class Laser {
 						timeScale: 1,
 					};
 
+		this.spawnDistance = 0.03;
+
 		this.datgui = new dat.GUI( { width: 350 } );
 		this.datgui.add( this.options, "size", 1, 20 );
 		this.datgui.add( this.options, "lifetime", .1, 10 );
@@ -24,10 +27,6 @@ class Laser {
 
 		this.obj3d = new THREE.Object3D();
 		this.obj3d.add( this.particleSystem );
-
-		this.tick = 0;
-		this.frame = 0;
-		this.offset = new THREE.Vector3();
 	}
 
 	move(destination) {
@@ -35,7 +34,7 @@ class Laser {
 	}
 
 	trace(destination) {
-		const spawnDistance = 0.03;
+		const spawnDistance = this.spawnDistance;
 		const toDestVec = destination.clone().sub(this.options.position);
 		const distance = toDestVec.length();
 		const direction = toDestVec.normalize();
@@ -48,28 +47,49 @@ class Laser {
 		}
 	}
 
-	execute() {
-		for (let i = -5; i < 5; i++) {
-			for (let j = -9; j < 9; j+=6) {
-				const k = 1;
-				this.move(new THREE.Vector3(0 + j, 0 - k, i).add(this.offset));
-				this.trace(new THREE.Vector3(5 + j, 5 - k, i).add(this.offset));
-				this.trace(new THREE.Vector3(5 + j, 0 - k, i).add(this.offset));
-				this.trace(new THREE.Vector3(0 + j, 0 - k, i).add(this.offset));
-			}
-		}
-
-		this.offset.x += 0.01;
+	deposit(location) {
+		this.options.position.copy(location);
+		this.particleSystem.spawnParticle( this.options );
 	}
 
-	update(deltaTime) {
-		const delta = deltaTime * this.options.timeScale;
-		this.tick += delta;
-		if (this.frame % 3 === 0) {
-			this.execute();
+	color(color) {
+		this.options.color = color;
+	}
+
+	size(size) {
+		this.options.size = size;
+	}
+
+	spacing(spacing) {
+		this.spawnDistance = spacing / 100;
+	}
+
+	residue(persistence) {
+		this.options.lifetime = persistence;
+	}
+
+	executeProgram(program) {
+		// while (program.hasNextInstruction()) {
+		// 	this.executeInstruction(program.nextInstruction());
+		// }
+	}
+
+	executeInstruction(instruction) {
+		switch (instruction.type) {
+			case C.MOVE:
+				this.move(instruction.arg1);
+			break;
+			case C.TRACE:
+				this.trace(instruction.arg1);
+			break;
+			default:
+				console.error("unrecognized instruction", type);
+			break;
 		}
-		this.frame++;
-		this.particleSystem.update( this.tick );
+	}
+
+	update(tick) {
+		this.particleSystem.update( tick );
 	}
 }
 
