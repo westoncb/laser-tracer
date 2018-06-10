@@ -155,7 +155,7 @@ class ParticleSystem extends THREE.Object3D {
 
 				lifeLeft = 1.0 - ( timeElapsed / lifeTime );
 
-				gl_PointSize = ( uScale * size ) * lifeLeft;
+				gl_PointSize = ( uScale * size ) * lifeLeft * lifeLeft;
 
 
 				if( timeElapsed > 0.0 ) {
