@@ -56,11 +56,15 @@ class TracerController {
 		this.frameSkip = 1;
 		this.offset = vec3();
 		this.rotation = 0;
+
+		this.waveDir = vec3(Math.random(), 0, Math.random());
+		this.waveDir.multiplyScalar(2);
+		this.waveDir.sub(vec3(-1, 0, -1));
 	}
 
 	getNextUserProgram() {
 		const t = new TracerProgram();
-		this.sphere(t);
+		this.wave(t);
 		return t;
 	}
 
@@ -156,8 +160,10 @@ class TracerController {
 				let x = i * increment - size/2;
 				const z = j * increment - size/2;
 
-				const y = Math.sin(this.totalTime + waveSize*x*waveCount) * 5;
-				x += Math.cos(this.totalTime + waveSize*x*waveCount) * 3;
+				const phase = vec3(x, 0, z).dot(this.waveDir);
+
+				const y = Math.sin(phase + this.totalTime + waveSize*x*waveCount) * 5;
+				x += Math.cos(phase + this.totalTime + waveSize*x*waveCount) * 3;
 
 				// t.color(0x111111 * x);
 
