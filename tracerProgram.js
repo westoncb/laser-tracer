@@ -16,6 +16,11 @@ class TracerProgram {
 		return this.instructions[this.instructionPointer++];
 	}
 
+	getTracedPaths() {
+		// Note: we're just returning the TRACE destinations, not the full line traced
+		return this.instructions.filter(instruction => instruction.name === C.TRACE || instruction.name === C.DEPOSIT).map(instruction => instruction.arg1);
+	}
+
 	reset() {
 		this.instructionPointer = 0;
 	}
