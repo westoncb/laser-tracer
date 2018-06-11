@@ -39,18 +39,18 @@ class BasicCanvas {
 
 	    this.scene = new THREE.Scene();
 	    this.camera = new THREE.PerspectiveCamera( 45, this.state.canvasWidth / this.state.canvasHeight, this.state.cameraNear, this.state.cameraFar );
-	    this.camera.position.z = 20;
+	    this.camera.position.z = 280;
 	    this.camera.lookAt(new THREE.Vector3(0, 0, 0));
 	    this.scene.add(this.camera);
-	    this.scene.fog = new THREE.Fog(0x000000, 10, 20);
+	    // this.scene.fog = new THREE.Fog(0x000000, 10, 20);
 
 	    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
 	    this.controls.enableDamping = true;
 		this.controls.dampingFactor = 0.25;
 		this.controls.screenSpacePanning = false;
 		this.controls.minDistance = 0;
-		this.controls.maxDistance = 200;
-		this.controls.maxPolarAngle = Math.PI / 2;
+		this.controls.maxDistance = 800;
+		this.controls.maxPolarAngle = Math.PI;
 
 	    const lightTarget = new THREE.Object3D();
 	    lightTarget.position.set(-1, -1, -10);
