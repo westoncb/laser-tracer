@@ -155,7 +155,9 @@ class ParticleSystem extends THREE.Object3D {
 
 				lifeLeft = 1.0 - ( timeElapsed / lifeTime );
 
-				gl_PointSize = ( uScale * size ) * lifeLeft * lifeLeft;
+				// Cap the point size since the calcuation we use can lead to explosions
+				// in size for certain values of lifeLeft
+				gl_PointSize = min(8., ( uScale * size ) * lifeLeft * lifeLeft);
 
 
 				if( timeElapsed > 0.0 ) {
@@ -198,14 +200,7 @@ class ParticleSystem extends THREE.Object3D {
 					alpha = scaleLinear( lifeLeft, vec2( 1.0, 0.995 ), vec2( 0.0, 1.0 ) );
 
 				} else {
-
-					// Seems to be that a big part of the slowdown-to-crash issue is
-					// with the alpha calculation here. If if use 1 in place of lifeLeft
-					// it will go away (for cases I've tried).
-					// I noticed that changing the 'residue' to a very small number was
-					// one thing that would trigger the issue.
 					alpha = lifeLeft * 0.75;
-
 				}
 
 				vec4 tex = texture2D( tSprite, gl_PointCoord );
