@@ -199,6 +199,11 @@ class ParticleSystem extends THREE.Object3D {
 
 				} else {
 
+					// Seems to be that a big part of the slowdown-to-crash issue is
+					// with the alpha calculation here. If if use 1 in place of lifeLeft
+					// it will go away (for cases I've tried).
+					// I noticed that changing the 'residue' to a very small number was
+					// one thing that would trigger the issue.
 					alpha = lifeLeft * 0.75;
 
 				}
@@ -314,6 +319,8 @@ class ParticleContainer extends THREE.Object3D {
 	init() {
 
 		this.pointsObj3d = new THREE.Points( this.particleShaderGeo, this.particleShaderMat );
+		this.pointsObj3d.scale.set(1.01, 1.01, 1.01);
+		// this.pointsObj3d.material.depthTest = false;
 		this.particleSystem.frustumCulled = false;
 		this.add( this.pointsObj3d );
 	}
