@@ -4,7 +4,9 @@ const THREE = require('three');
 const C = require('./C'); // constants
 
 class LaserTracer {
-	constructor() {
+	constructor(options = {}) {
+		this.animate = options.animate;
+		this.executedOnce = false;
 		this.options = {
 						position: new THREE.Vector3(),
 						velocity: new THREE.Vector3(),
@@ -67,6 +69,14 @@ class LaserTracer {
 	}
 
 	execute(program) {
+		if (this.executedOnce) {
+			if (!this.animate) {
+				return;
+			}
+		} else {
+			this.executedOnce = true;
+		}
+
 		while (program.hasNextInstruction()) {
 			this._executeInstruction(program.nextInstruction());
 		}
@@ -102,7 +112,15 @@ class LaserTracer {
 	}
 
 	update(totalTime) {
-		this.particleSystem.update( totalTime );
+		if (this.animate) {
+			this.particleSystem.update(totalTime);
+		} else {
+			this.particleSystem.update(0.1);
+		}
+	}
+
+	getSceneGraphNode() {
+		return this.obj3d;
 	}
 }
 
