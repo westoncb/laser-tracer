@@ -11,7 +11,6 @@ class Laser {
 						color: 0xaa88ff,
 						lifetime: 1,
 						size: 5,
-						timeScale: 1,
 					};
 
 		this.spawnDistance = 0.03;
@@ -19,7 +18,6 @@ class Laser {
 		this.datgui = new dat.GUI( { width: 350 } );
 		this.datgui.add( this.options, "size", 1, 20 );
 		this.datgui.add( this.options, "lifetime", .1, 10 );
-		this.datgui.add( this.options, "timeScale", .01, 5 );
 
 		this.particleSystem = new ParticleSystem( {
 						maxParticles: 250000
@@ -61,35 +59,50 @@ class Laser {
 	}
 
 	spacing(spacing) {
-		this.spawnDistance = spacing / 100;
+		this.spawnDistance = spacing;
 	}
 
 	residue(persistence) {
 		this.options.lifetime = persistence;
 	}
 
-	executeProgram(program) {
-		// while (program.hasNextInstruction()) {
-		// 	this.executeInstruction(program.nextInstruction());
-		// }
+	execute(program) {
+		while (program.hasNextInstruction()) {
+			this._executeInstruction(program.nextInstruction());
+		}
 	}
 
-	executeInstruction(instruction) {
-		switch (instruction.type) {
+	_executeInstruction(instruction) {
+		switch (instruction.name) {
 			case C.MOVE:
 				this.move(instruction.arg1);
 			break;
 			case C.TRACE:
 				this.trace(instruction.arg1);
 			break;
+			case C.SPACING:
+				this.spacing(instruction.arg1);
+			break;
+			case C.SIZE:
+				this.size(instruction.arg1);
+			break;
+			case C.RESIDUE:
+				this.residue(instruction.arg1);
+			break;
+			case C.COLOR:
+				this.color(instruction.arg1);
+			break;
+			case C.DEPOSIT:
+				this.deposit(instruction.arg1);
+			break;
 			default:
-				console.error("unrecognized instruction", type);
+				console.error("unrecognized instruction", instruction);
 			break;
 		}
 	}
 
-	update(tick) {
-		this.particleSystem.update( tick );
+	update(totalTime) {
+		this.particleSystem.update( totalTime );
 	}
 }
 

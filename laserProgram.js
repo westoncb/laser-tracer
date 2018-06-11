@@ -9,34 +9,11 @@ class LaserProgram {
 	}
 
 	hasNextInstruction() {
-		return this.instructionPointer < (this.instructions.length - 1);
+		return this.instructionPointer < (this.instructions.length);
 	}
 
 	nextInstruction() {
-		const instructionData = LaserProgram._readInstruction(this.instructionPointer, this.instructions);
-		const instruction = instructionData[0];
-		this.instructionPointer = instructionData[1];
-
-		return instruction;
-	}
-
-	static _readInstruction(instructionPointer, instructions) {
-		const type = instructions[instructionPointer++];
-		const instruction = {type};
-
-		switch (type) {
-			case C.MOVE:
-				instruction.arg1 = instructions[instructionPointer++];
-			break;
-			case C.TRACE:
-				instruction.arg1 = instructions[instructionPointer++];
-			break;
-			default:
-				console.error("unrecognized instruction", type);
-			break;
-		}
-
-		return [instruction, instructionPointer];
+		return this.instructions[this.instructionPointer++];
 	}
 
 	reset() {
@@ -44,13 +21,31 @@ class LaserProgram {
 	}
 
 	move(destination) {
-		this.instructions.push(C.MOVE);
-		this.instructions.push(destination);
+		this.instructions.push({name: C.MOVE, arg1: destination});
 	}
 
 	trace(destination) {
-		this.instructions.push(C.TRACE);
-		this.instructions.push(destination);
+		this.instructions.push({name: C.TRACE, arg1: destination});
+	}
+
+	deposit(location) {
+		this.instructions.push({name: C.DEPOSIT, arg1: location});
+	}
+
+	color(color) {
+		this.instructions.push({name: C.COLOR, arg1: color});
+	}
+
+	size(size) {
+		this.instructions.push({name: C.SIZE, arg1: size});
+	}
+
+	spacing(spacing) {
+		this.instructions.push({name: C.SPACING, arg1: (spacing / 100)});
+	}
+
+	residue(persistence) {
+		this.instructions.push({name: C.RESIDUE, arg1: persistence});
 	}
 }
 

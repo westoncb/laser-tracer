@@ -22,6 +22,8 @@ class TracerController {
 		scene.add(this.testCube);
 		this.updateCubeDimensions();
 		
+		this.tracer.obj3d.frustumCulled = false;
+
 		scene.add(this.tracer.obj3d);
 	}
 
@@ -30,26 +32,27 @@ class TracerController {
 		this.totalTime = 0;
 		this.frame = 0;
 		this.frameSkip = 3;
+		this.timeScale = 1;
 
 		this.initUserProgram();
 	}
 
 	initUserProgram() {
-		this.offset = vec3();
 		this.frameSkip = 1;
+		this.offset = vec3();
 		this.rotation = 0;
 	}
 
-	executeProgram() {
-		this.triangles();
-		// this.sphere2();
+	getNextUserProgram() {
+		return this.sphere();
 	}
 
 	update(deltaMillis) {
-		const scaledDelta = deltaMillis * this.tracer.options.timeScale;
+		const scaledDelta = deltaMillis * this.timeScale;
 		this.totalTime += scaledDelta;
 		if (this.frame % this.frameSkip === 0) {
-			this.executeProgram();
+			const prog = this.getNextUserProgram();
+			this.tracer.execute(prog);
 		}
 
 		this.tracer.update(this.totalTime);
@@ -57,12 +60,12 @@ class TracerController {
 		this.frame++;
 	}
 
-	sphere() {
-		const l = this.tracer;
+	thing() {
+		const t = new LaserProgram();
 		const samples = 3000;
 		const radius = 3;
 
-		l.move(vec3(0, 0, 0));
+		t.move(vec3(0, 0, 0));
 
 		let angle = 0;
 		for (let i = 0; i < samples; i++) {
@@ -72,21 +75,23 @@ class TracerController {
 			const y = Math.sin(angle) * radius;
 			const z = Math.sin(this.rotation * 100) * radius;
 
-			l.deposit(vec3(x, y, z));
+			t.deposit(vec3(x, y, z));
 		}
 
 		this.rotation += 0.02;
+
+		return t;
 	}
 
-	sphere2() {
-		const l = this.tracer;
-		const samples = 2000;
+	sphere() {
+		const t = new LaserProgram();
+		const samples = 300;
 		const radius = 3;
 
-		l.move(vec3(0, 0, 0));
-		l.spacing(1);
-		l.size(3);
-		l.residue(0.5);
+		t.move(vec3(0, 0, 0));
+		t.spacing(1);
+		t.size(3);
+		t.residue(0.5);
 
 		let vAngle = Math.PI/2;
 		let hAngle = 0;
@@ -98,49 +103,53 @@ class TracerController {
 		for (let i = 0; i < vIters; i++) {
 			const y = Math.sin(vAngle) * radius;
 			curRadius = Math.cos(vAngle) * radius;
-			l.move(vec3(x, y, z));
+			t.move(vec3(x, y, z));
 			for (let j = 0; j < hIters; j++) {
 				x = Math.cos(hAngle + this.rotation) * curRadius;
 				z = Math.sin(hAngle + this.rotation) * curRadius;
 				hAngle += Math.PI * 2 / hIters;
-				l.color(0xffffff * hAngle / Math.PI / 2)
-				l.trace(vec3(x, y, z));
+				t.color(0xffffff * hAngle / Math.PI / 2)
+				t.trace(vec3(x, y, z));
 			}
 			vAngle += Math.PI / vIters;
 		}
 
 		this.rotation += 0.008;
+
+		return t;
 	}
 
 	triangles() {
-		const l = this.tracer;
+		const t = new LaserProgram();
 
 		for (let i = -2; i < 2; i++) {
 			for (let j = -9; j < 9; j+=6) {
 				const k = 1;
 
 				if (((j+9)/6) % 2 === 0) {
-					l.color(0xff55cc);
+					t.color(0xff55cc);
 				} else {
-					l.color(0x00FFFF);
+					t.color(0x00FFFF);
 				}
 
 				if (i % 2 === 0) {
-					l.size(5);
-					l.spacing(3);
+					t.size(5);
+					t.spacing(3);
 				} else {
-					l.size(5);
-					l.spacing(3);
+					t.size(5);
+					t.spacing(3);
 				}
 
-				l.move(vec3(0 + j, 0 - k, i).add(this.offset));
-				l.trace(vec3(5 + j, 5 - k, i).add(this.offset));
-				l.trace(vec3(5 + j, 0 - k, i).add(this.offset));
-				l.trace(vec3(0 + j, 0 - k, i).add(this.offset));
+				t.move(vec3(0 + j, 0 - k, i).add(this.offset));
+				t.trace(vec3(5 + j, 5 - k, i).add(this.offset));
+				t.trace(vec3(5 + j, 0 - k, i).add(this.offset));
+				t.trace(vec3(0 + j, 0 - k, i).add(this.offset));
 			}
 		}
 
 		this.offset.x += 0.01;
+
+		return t;
 	}
 
 	updateCubeDimensions() {
