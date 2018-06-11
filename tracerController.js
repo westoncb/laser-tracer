@@ -1,6 +1,7 @@
 const BasicCanvas = require('./basicCanvas');
 const THREE = require('three');
 const LaserTracer = require('./laserTracer');
+const MeshTracer = require('./meshTracer');
 const TracerProgram = require('./TracerProgram');
 const vec3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -10,7 +11,7 @@ class TracerController {
 			this.updateCubeDimensions();
 		}
 
-		this.initTracer();
+		this.initTracers();
 		this.canvas = new BasicCanvas('canvas-container', this.update.bind(this), ()=>{}, onWindowResize.bind(this));
 		this.initScene(this.canvas.scene);
 	}
@@ -19,22 +20,36 @@ class TracerController {
 		const geometry = new THREE.BoxBufferGeometry(10, 10, 10);
 		const material = new THREE.MeshStandardMaterial({color: 0xccddee, metalness: 0.6, roughness: 0.4, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide});
 		this.testCube = new THREE.Mesh(geometry, material);
+		this.testCube.visible = false;
 		scene.add(this.testCube);
 		this.updateCubeDimensions();
-		
-		this.tracer.obj3d.frustumCulled = false;
 
-		scene.add(this.tracer.obj3d);
+		this.iterTracers((tracer) => scene.add(tracer.getSceneGraphNode()));
 	}
 
-	initTracer() {
-		this.tracer = new LaserTracer();
+	initTracers() {
+		this.tracers = [];
+		this.tracers['meshTracer'] = new MeshTracer({animate: false});
+		this.tracers['laserTracer'] = new LaserTracer({animate: true});
+
+		this.enableTable = [];
+		this.enableTable['meshTracer'] = false;
+		this.enableTable['laserTracer'] = true;
+
 		this.totalTime = 0;
 		this.frame = 0;
-		this.frameSkip = 3;
+		this.frameSkip = 300;
 		this.timeScale = 1;
 
 		this.initUserProgram();
+	}
+
+	iterTracers(func) {
+		Object.keys(this.tracers).forEach(key => {
+			if (this.enableTable[key]) {
+				func(this.tracers[key]);
+			}
+		});
 	}
 
 	initUserProgram() {
@@ -44,7 +59,9 @@ class TracerController {
 	}
 
 	getNextUserProgram() {
-		return this.sphere();
+		const t = new TracerProgram();
+		this.wave(t);
+		return t;
 	}
 
 	update(deltaMillis) {
@@ -52,17 +69,16 @@ class TracerController {
 		this.totalTime += scaledDelta;
 		if (this.frame % this.frameSkip === 0) {
 			const prog = this.getNextUserProgram();
-			this.tracer.execute(prog);
+			this.iterTracers((tracer) => tracer.execute(prog));
 		}
 
-		this.tracer.update(this.totalTime);
+		this.iterTracers((tracer) => tracer.update(this.totalTime));
 
 		this.frame++;
 	}
 
-	thing() {
-		const t = new TracerProgram();
-		const samples = 3000;
+	thing(t) {
+		const samples = 300;
 		const radius = 3;
 
 		t.move(vec3(0, 0, 0));
@@ -79,17 +95,14 @@ class TracerController {
 		}
 
 		this.rotation += 0.02;
-
-		return t;
 	}
 
-	sphere() {
-		const t = new TracerProgram();
-		const samples = 1000;
-		const radius = 3;
+	sphere(t) {
+		const samples = 600;
+		const radius = 60;
 
 		t.move(vec3(0, 0, 0));
-		t.spacing(2);
+		t.spacing(25);
 		t.size(4);
 		t.residue(0.5);
 
@@ -100,9 +113,15 @@ class TracerController {
 		let curRadius = 0;
 		let x = 0;
 		let z = 0;
+		const radiusScalerFunc = () => {
+			// const min = 0.8;
+			// const max = 1.6;
+			// return Math.random()*(max - min) + min;
+			return 1;
+		};
 		for (let i = 0; i < vIters; i++) {
 			const y = Math.sin(vAngle) * radius;
-			curRadius = Math.cos(vAngle) * radius;
+			curRadius = Math.cos(vAngle) * radius * radiusScalerFunc();
 			t.move(vec3(x, y, z));
 			for (let j = 0; j < hIters; j++) {
 				x = Math.cos(hAngle + this.rotation) * curRadius;
@@ -115,13 +134,39 @@ class TracerController {
 		}
 
 		this.rotation += 0.008;
+	}
 
-		return t;
+	wave(t) {
+		const samples = 5000;
+		const samplesPerAxis = Math.sqrt(samples);
+		const size = 200;
+		const waveSize = size / (Math.PI*2);
+		const waveCount = 15;
+
+		t.move(vec3(0, 0, 0));
+		t.spacing(25);
+		t.size(8);
+		t.residue(1);
+		t.color(0xaa88ff);
+
+		const count = samplesPerAxis;
+		const increment = size / samplesPerAxis;
+		for (let i = 0; i < count; i++) {
+			for (let j = 0; j < count; j++) {
+				let x = i * increment - size/2;
+				const z = j * increment - size/2;
+
+				const y = Math.sin(this.totalTime + waveSize*x*waveCount) * 5;
+				x += Math.cos(this.totalTime + waveSize*x*waveCount) * 3;
+
+				// t.color(0x111111 * x);
+
+				t.deposit(vec3(x, y, z));
+			}		
+		}
 	}
 
 	triangles() {
-		const t = new TracerProgram();
-
 		for (let i = -2; i < 2; i++) {
 			for (let j = -9; j < 9; j+=6) {
 				const k = 1;
@@ -147,9 +192,7 @@ class TracerController {
 			}
 		}
 
-		this.offset.x += 0.005;
-
-		return t;
+		// this.offset.x += 0.005;
 	}
 
 	updateCubeDimensions() {
