@@ -48,7 +48,7 @@ class BasicCanvas {
 	    this.controls.enableDamping = true;
 		this.controls.dampingFactor = 0.25;
 		this.controls.screenSpacePanning = false;
-		this.controls.minDistance = 1;
+		this.controls.minDistance = 0;
 		this.controls.maxDistance = 200;
 		this.controls.maxPolarAngle = Math.PI / 2;
 
