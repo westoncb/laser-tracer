@@ -85,12 +85,12 @@ class TracerController {
 
 	sphere() {
 		const t = new TracerProgram();
-		const samples = 300;
+		const samples = 1000;
 		const radius = 3;
 
 		t.move(vec3(0, 0, 0));
-		t.spacing(1);
-		t.size(3);
+		t.spacing(2);
+		t.size(4);
 		t.residue(0.5);
 
 		let vAngle = Math.PI/2;
@@ -147,7 +147,7 @@ class TracerController {
 			}
 		}
 
-		this.offset.x += 0.01;
+		this.offset.x += 0.005;
 
 		return t;
 	}
