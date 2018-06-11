@@ -60,7 +60,7 @@ class TracerController {
 
 	getNextUserProgram() {
 		const t = new TracerProgram();
-		this.wave(t);
+		this.sphere(t);
 		return t;
 	}
 
@@ -98,13 +98,13 @@ class TracerController {
 	}
 
 	sphere(t) {
-		const samples = 600;
+		const samples = 1000;
 		const radius = 60;
 
 		t.move(vec3(0, 0, 0));
-		t.spacing(25);
+		t.spacing(30);
 		t.size(4);
-		t.residue(0.5);
+		t.residue(1);
 
 		let vAngle = Math.PI/2;
 		let hAngle = 0;
@@ -146,7 +146,7 @@ class TracerController {
 		t.move(vec3(0, 0, 0));
 		t.spacing(25);
 		t.size(8);
-		t.residue(1);
+		t.residue(5);
 		t.color(0xaa88ff);
 
 		const count = samplesPerAxis;
@@ -166,7 +166,7 @@ class TracerController {
 		}
 	}
 
-	triangles() {
+	triangles(t) {
 		for (let i = -2; i < 2; i++) {
 			for (let j = -9; j < 9; j+=6) {
 				const k = 1;
@@ -192,7 +192,7 @@ class TracerController {
 			}
 		}
 
-		// this.offset.x += 0.005;
+		this.offset.x += 0.005;
 	}
 
 	updateCubeDimensions() {
