@@ -1,7 +1,7 @@
 const THREE = require('three');
 const C = require('./C'); // constants
 
-class LaserProgram {
+class TracerProgram {
 
 	constructor() {
 		this.instructions = [];
@@ -49,4 +49,4 @@ class LaserProgram {
 	}
 }
 
-module.exports = LaserProgram;
+module.exports = TracerProgram;

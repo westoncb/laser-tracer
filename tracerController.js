@@ -1,7 +1,7 @@
 const BasicCanvas = require('./basicCanvas');
 const THREE = require('three');
 const Laser = require('./laser');
-const LaserProgram = require('./laserProgram');
+const TracerProgram = require('./TracerProgram');
 const vec3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
 class TracerController {
@@ -61,7 +61,7 @@ class TracerController {
 	}
 
 	thing() {
-		const t = new LaserProgram();
+		const t = new TracerProgram();
 		const samples = 3000;
 		const radius = 3;
 
@@ -84,7 +84,7 @@ class TracerController {
 	}
 
 	sphere() {
-		const t = new LaserProgram();
+		const t = new TracerProgram();
 		const samples = 300;
 		const radius = 3;
 
@@ -120,7 +120,7 @@ class TracerController {
 	}
 
 	triangles() {
-		const t = new LaserProgram();
+		const t = new TracerProgram();
 
 		for (let i = -2; i < 2; i++) {
 			for (let j = -9; j < 9; j+=6) {
