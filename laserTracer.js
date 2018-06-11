@@ -3,7 +3,7 @@ const dat = require('dat.GUI');
 const THREE = require('three');
 const C = require('./C'); // constants
 
-class Laser {
+class LaserTracer {
 	constructor() {
 		this.options = {
 						position: new THREE.Vector3(),
@@ -106,4 +106,4 @@ class Laser {
 	}
 }
 
-module.exports = Laser;
+module.exports = LaserTracer;

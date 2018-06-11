@@ -1,6 +1,6 @@
 const BasicCanvas = require('./basicCanvas');
 const THREE = require('three');
-const Laser = require('./laser');
+const LaserTracer = require('./laserTracer');
 const TracerProgram = require('./TracerProgram');
 const vec3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -28,7 +28,7 @@ class TracerController {
 	}
 
 	initTracer() {
-		this.tracer = new Laser();
+		this.tracer = new LaserTracer();
 		this.totalTime = 0;
 		this.frame = 0;
 		this.frameSkip = 3;
