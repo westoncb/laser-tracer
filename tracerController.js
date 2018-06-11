@@ -160,7 +160,7 @@ class TracerController {
 				let x = i * increment - size/2;
 				const z = j * increment - size/2;
 
-				const phase = vec3(x, 0, z).dot(this.waveDir);
+				const phase = vec3(x, 0, z).dot(this.waveDir) * 0.05;
 
 				const y = Math.sin(phase + this.totalTime + waveSize*x*waveCount) * 5;
 				x += Math.cos(phase + this.totalTime + waveSize*x*waveCount) * 3;
