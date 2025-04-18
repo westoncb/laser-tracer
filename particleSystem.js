@@ -1,4 +1,4 @@
-const THREE = require('three');
+import * as THREE from "three";
 
 /*
  * This was adapted from the "GPU Particle System" project of "flimshaw - Charlie Hoey - http://charliehoey.com"
@@ -8,131 +8,124 @@ const THREE = require('three');
  */
 
 class ParticleSystem extends THREE.Object3D {
+  constructor(options) {
+    super();
 
-	constructor(options) {
-		super();
+    this.options = options || {};
 
-		this.options = options || {};
+    // parse options and use defaults
 
-		// parse options and use defaults
+    this.PARTICLE_COUNT = this.options.maxParticles || 1000000;
+    this.PARTICLE_CONTAINERS = this.options.containerCount || 1;
 
-		this.PARTICLE_COUNT = this.options.maxParticles || 1000000;
-		this.PARTICLE_CONTAINERS = this.options.containerCount || 1;
+    this.PARTICLE_SPRITE_TEXTURE = this.options.particleSpriteTex || null;
 
-		this.PARTICLE_SPRITE_TEXTURE = this.options.particleSpriteTex || null;
+    this.PARTICLES_PER_CONTAINER = Math.ceil(
+      this.PARTICLE_COUNT / this.PARTICLE_CONTAINERS,
+    );
+    this.PARTICLE_CURSOR = 0;
+    this.time = 0;
+    this.particleContainers = [];
 
-		this.PARTICLES_PER_CONTAINER = Math.ceil( this.PARTICLE_COUNT / this.PARTICLE_CONTAINERS );
-		this.PARTICLE_CURSOR = 0;
-		this.time = 0;
-		this.particleContainers = [];
+    this.randIndex = 0;
+    this.rand = [];
 
-		this.randIndex = 0;
-		this.rand = [];
+    // preload a million random numbers
 
-		// preload a million random numbers
+    let i;
 
-		let i;
+    for (i = 1e5; i > 0; i--) {
+      this.rand.push(Math.random() - 0.5);
+    }
 
-		for ( i = 1e5; i > 0; i -- ) {
+    let textureLoader = new THREE.TextureLoader();
 
-			this.rand.push( Math.random() - 0.5 );
+    this.particleSpriteTex =
+      this.PARTICLE_SPRITE_TEXTURE ||
+      textureLoader.load("textures/particle2.png");
+    this.particleSpriteTex.wrapS = this.particleSpriteTex.wrapT =
+      THREE.RepeatWrapping;
 
-		}
+    const shaderStrings = ParticleSystem.getShaderStrings();
+    const uniforms = {
+      uTime: {
+        value: 0.0,
+      },
+      uScale: {
+        value: 1.0,
+      },
+      tSprite: {
+        value: this.particleSpriteTex,
+      },
+    };
 
-		let textureLoader = new THREE.TextureLoader();
+    this.particleShaderMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms,
+      blending: THREE.AdditiveBlending,
+      vertexShader: shaderStrings.vertexShader,
+      fragmentShader: shaderStrings.fragmentShader,
+    });
 
-		this.particleSpriteTex = this.PARTICLE_SPRITE_TEXTURE || textureLoader.load( 'textures/particle2.png' );
-		this.particleSpriteTex.wrapS = this.particleSpriteTex.wrapT = THREE.RepeatWrapping;
+    // define defaults for all values
 
-		const shaderStrings = ParticleSystem.getShaderStrings();
-		const uniforms = {
-				'uTime': {
-					value: 0.0
-				},
-				'uScale': {
-					value: 1.0
-				},
-				'tSprite': {
-					value: this.particleSpriteTex
-				}
-			};
+    this.particleShaderMat.defaultAttributeValues.particlePositionsStartTime = [
+      0, 0, 0, 0,
+    ];
+    this.particleShaderMat.defaultAttributeValues.particleVelColSizeLife = [
+      0, 0, 0, 0,
+    ];
 
-		this.particleShaderMat = new THREE.ShaderMaterial( {
-			transparent: true,
-			depthWrite: false,
-			uniforms,
-			blending: THREE.AdditiveBlending,
-			vertexShader: shaderStrings.vertexShader,
-			fragmentShader: shaderStrings.fragmentShader,
-		} );
+    this.init();
+  }
 
-		// define defaults for all values
+  init() {
+    for (let i = 0; i < this.PARTICLE_CONTAINERS; i++) {
+      let c = new ParticleContainer(this.PARTICLES_PER_CONTAINER, this);
+      this.particleContainers.push(c);
+      this.add(c);
+    }
+  }
 
-		this.particleShaderMat.defaultAttributeValues.particlePositionsStartTime = [ 0, 0, 0, 0 ];
-		this.particleShaderMat.defaultAttributeValues.particleVelColSizeLife = [ 0, 0, 0, 0 ];
+  random() {
+    return ++this.randIndex >= this.rand.length
+      ? this.rand[(this.randIndex = 1)]
+      : this.rand[this.randIndex];
+  }
 
-		this.init();
-	}
+  spawnParticle(options) {
+    this.PARTICLE_CURSOR++;
 
-	init() {
+    if (this.PARTICLE_CURSOR >= this.PARTICLE_COUNT) {
+      this.PARTICLE_CURSOR = 1;
+    }
 
-		for ( let i = 0; i < this.PARTICLE_CONTAINERS; i ++ ) {
+    let currentContainer =
+      this.particleContainers[
+        Math.floor(this.PARTICLE_CURSOR / this.PARTICLES_PER_CONTAINER)
+      ];
 
-			let c = new ParticleContainer( this.PARTICLES_PER_CONTAINER, this );
-			this.particleContainers.push( c );
-			this.add( c );
+    currentContainer.spawnParticle(options);
+  }
 
-		}
+  update(time) {
+    for (let i = 0; i < this.PARTICLE_CONTAINERS; i++) {
+      this.particleContainers[i].update(time);
+    }
+  }
 
-	}
+  dispose() {
+    this.particleShaderMat.dispose();
+    this.particleSpriteTex.dispose();
 
-	random() {
+    for (let i = 0; i < this.PARTICLE_CONTAINERS; i++) {
+      this.particleContainers[i].dispose();
+    }
+  }
 
-		return ++ this.randIndex >= this.rand.length ? this.rand[ this.randIndex = 1 ] : this.rand[ this.randIndex ];
-
-	}
-
-	spawnParticle( options ) {
-
-		this.PARTICLE_CURSOR ++;
-
-		if ( this.PARTICLE_CURSOR >= this.PARTICLE_COUNT ) {
-
-			this.PARTICLE_CURSOR = 1;
-
-		}
-
-		let currentContainer = this.particleContainers[ Math.floor( this.PARTICLE_CURSOR / this.PARTICLES_PER_CONTAINER ) ];
-
-		currentContainer.spawnParticle( options );
-
-	}
-
-	update( time ) {
-
-		for ( let i = 0; i < this.PARTICLE_CONTAINERS; i ++ ) {
-
-			this.particleContainers[ i ].update( time );
-
-		}
-
-	}
-
-	dispose() {
-
-		this.particleShaderMat.dispose();
-		this.particleSpriteTex.dispose();
-
-		for ( let i = 0; i < this.PARTICLE_CONTAINERS; i ++ ) {
-
-			this.particleContainers[ i ].dispose();
-
-		}
-
-	}
-
-	static getShaderStrings() {
-		const vertexShader = `
+  static getShaderStrings() {
+    const vertexShader = `
 			uniform float uTime;
 			uniform float uScale;
 
@@ -171,9 +164,9 @@ class ParticleSystem extends THREE.Object3D {
 					gl_PointSize = 0.;
 
 				}
-			}`
+			}`;
 
-		const fragmentShader = `
+    const fragmentShader = `
 			float scaleLinear( float value, vec2 valueDomain ) {
 
 				return ( value - valueDomain.x ) / ( valueDomain.y - valueDomain.x );
@@ -206,189 +199,236 @@ class ParticleSystem extends THREE.Object3D {
 				vec4 tex = texture2D( tSprite, gl_PointCoord );
 				gl_FragColor = vec4( vColor.rgb * tex.a, alpha * tex.a );
 
-			}`
+			}`;
 
-		return {vertexShader, fragmentShader};
-	}
+    return { vertexShader, fragmentShader };
+  }
 }
-
 
 // Subclass for particle containers, allows for very large arrays to be spread out
 
 class ParticleContainer extends THREE.Object3D {
+  constructor(maxParticles, particleSystem) {
+    super();
 
-	constructor(maxParticles, particleSystem) {
-		super();
+    this.PARTICLE_COUNT = maxParticles || 100000;
+    this.PARTICLE_CURSOR = 0;
+    this.time = 0;
+    this.offset = 0;
+    this.count = 0;
+    this.DPR = window.devicePixelRatio;
+    this.particleSystem = particleSystem;
+    this.particleUpdate = false;
 
-		this.PARTICLE_COUNT = maxParticles || 100000;
-		this.PARTICLE_CURSOR = 0;
-		this.time = 0;
-		this.offset = 0;
-		this.count = 0;
-		this.DPR = window.devicePixelRatio;
-		this.particleSystem = particleSystem;
-		this.particleUpdate = false;
+    // geometry
 
-		// geometry
+    this.particleShaderGeo = new THREE.BufferGeometry();
 
-		this.particleShaderGeo = new THREE.BufferGeometry();
+    this.particleShaderGeo.setAttribute(
+      "position",
+      new THREE.BufferAttribute(
+        new Float32Array(this.PARTICLE_COUNT * 3),
+        3,
+      ).setUsage(THREE.DynamicDrawUsage),
+    );
+    this.particleShaderGeo.setAttribute(
+      "positionStart",
+      new THREE.BufferAttribute(
+        new Float32Array(this.PARTICLE_COUNT * 3),
+        3,
+      ).setUsage(THREE.DynamicDrawUsage),
+    );
+    this.particleShaderGeo.setAttribute(
+      "startTime",
+      new THREE.BufferAttribute(
+        new Float32Array(this.PARTICLE_COUNT),
+        1,
+      ).setUsage(THREE.DynamicDrawUsage),
+    );
+    this.particleShaderGeo.setAttribute(
+      "color",
+      new THREE.BufferAttribute(
+        new Float32Array(this.PARTICLE_COUNT * 3),
+        3,
+      ).setUsage(THREE.DynamicDrawUsage),
+    );
+    this.particleShaderGeo.setAttribute(
+      "size",
+      new THREE.BufferAttribute(
+        new Float32Array(this.PARTICLE_COUNT),
+        1,
+      ).setUsage(THREE.DynamicDrawUsage),
+    );
+    this.particleShaderGeo.setAttribute(
+      "lifeTime",
+      new THREE.BufferAttribute(
+        new Float32Array(this.PARTICLE_COUNT),
+        1,
+      ).setUsage(THREE.DynamicDrawUsage),
+    );
 
-		this.particleShaderGeo.addAttribute( 'position', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT * 3 ), 3 ).setDynamic( true ) );
-		this.particleShaderGeo.addAttribute( 'positionStart', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT * 3 ), 3 ).setDynamic( true ) );
-		this.particleShaderGeo.addAttribute( 'startTime', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT ), 1 ).setDynamic( true ) );
-		this.particleShaderGeo.addAttribute( 'color', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT * 3 ), 3 ).setDynamic( true ) );
-		this.particleShaderGeo.addAttribute( 'size', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT ), 1 ).setDynamic( true ) );
-		this.particleShaderGeo.addAttribute( 'lifeTime', new THREE.BufferAttribute( new Float32Array( this.PARTICLE_COUNT ), 1 ).setDynamic( true ) );
+    // material
 
-		// material
+    this.particleShaderMat = this.particleSystem.particleShaderMat;
 
-		this.particleShaderMat = this.particleSystem.particleShaderMat;
+    this._position = new THREE.Vector3();
+    this._color = new THREE.Color(0xffffff);
 
-		this._position = new THREE.Vector3();
-		this._color = new THREE.Color(0xffffff);
+    this.init();
+  }
 
-		this.init();
-	}
+  spawnParticle(options) {
+    let positionStartAttribute =
+      this.particleShaderGeo.getAttribute("positionStart");
+    let startTimeAttribute = this.particleShaderGeo.getAttribute("startTime");
+    let colorAttribute = this.particleShaderGeo.getAttribute("color");
+    let sizeAttribute = this.particleShaderGeo.getAttribute("size");
+    let lifeTimeAttribute = this.particleShaderGeo.getAttribute("lifeTime");
 
-	spawnParticle ( options ) {
+    options = options || {};
 
-		let positionStartAttribute = this.particleShaderGeo.getAttribute( 'positionStart' );
-		let startTimeAttribute = this.particleShaderGeo.getAttribute( 'startTime' );
-		let colorAttribute = this.particleShaderGeo.getAttribute( 'color' );
-		let sizeAttribute = this.particleShaderGeo.getAttribute( 'size' );
-		let lifeTimeAttribute = this.particleShaderGeo.getAttribute( 'lifeTime' );
+    // setup reasonable default values for all arguments
 
-		options = options || {};
+    const position =
+      options.position !== undefined
+        ? this._position.copy(options.position)
+        : this._position;
+    const color =
+      options.color !== undefined
+        ? this._color.set(options.color)
+        : this._color;
 
-		// setup reasonable default values for all arguments
+    let lifetime = options.lifetime !== undefined ? options.lifetime : 5;
+    let size = options.size !== undefined ? options.size : 10;
 
-		const position = options.position !== undefined ? this._position.copy( options.position ) : this._position;
-		const color = options.color !== undefined ? this._color.set( options.color ) : this._color;
+    if (this.DPR !== undefined) size *= this.DPR;
 
-		let lifetime = options.lifetime !== undefined ? options.lifetime : 5;
-		let size = options.size !== undefined ? options.size : 10;
+    let i = this.PARTICLE_CURSOR;
 
-		if ( this.DPR !== undefined ) size *= this.DPR;
+    // position
 
-		let i = this.PARTICLE_CURSOR;
+    positionStartAttribute.array[i * 3 + 0] = position.x;
+    positionStartAttribute.array[i * 3 + 1] = position.y;
+    positionStartAttribute.array[i * 3 + 2] = position.z;
 
-		// position
+    colorAttribute.array[i * 3 + 0] = color.r;
+    colorAttribute.array[i * 3 + 1] = color.g;
+    colorAttribute.array[i * 3 + 2] = color.b;
 
-		positionStartAttribute.array[ i * 3 + 0 ] = position.x;
-		positionStartAttribute.array[ i * 3 + 1 ] = position.y;
-		positionStartAttribute.array[ i * 3 + 2 ] = position.z;
+    // size, lifetime and starttime
 
-		colorAttribute.array[ i * 3 + 0 ] = color.r;
-		colorAttribute.array[ i * 3 + 1 ] = color.g;
-		colorAttribute.array[ i * 3 + 2 ] = color.b;
+    sizeAttribute.array[i] = size;
+    lifeTimeAttribute.array[i] = lifetime;
+    startTimeAttribute.array[i] =
+      this.time + this.particleSystem.random() * 5e-2;
 
-		// size, lifetime and starttime
+    // offset
 
-		sizeAttribute.array[ i ] = size;
-		lifeTimeAttribute.array[ i ] = lifetime;
-		startTimeAttribute.array[ i ] = this.time + this.particleSystem.random() * 5e-2;
+    if (this.offset === 0) {
+      this.offset = this.PARTICLE_CURSOR;
+    }
 
-		// offset
+    // counter and cursor
 
-		if ( this.offset === 0 ) {
+    this.count++;
+    this.PARTICLE_CURSOR++;
 
-			this.offset = this.PARTICLE_CURSOR;
+    if (this.PARTICLE_CURSOR >= this.PARTICLE_COUNT) {
+      this.PARTICLE_CURSOR = 0;
+    }
 
-		}
+    this.particleUpdate = true;
+  }
 
-		// counter and cursor
+  init() {
+    this.pointsObj3d = new THREE.Points(
+      this.particleShaderGeo,
+      this.particleShaderMat,
+    );
+    this.pointsObj3d.scale.set(1.01, 1.01, 1.01);
+    // this.pointsObj3d.material.depthTest = false;
+    this.pointsObj3d.frustumCulled = false;
+    this.add(this.pointsObj3d);
+  }
 
-		this.count ++;
-		this.PARTICLE_CURSOR ++;
+  update(time) {
+    this.time = time;
+    this.particleShaderMat.uniforms.uTime.value = time;
 
-		if ( this.PARTICLE_CURSOR >= this.PARTICLE_COUNT ) {
+    this.geometryUpdate();
+  }
 
-			this.PARTICLE_CURSOR = 0;
+  geometryUpdate() {
+    if (this.particleUpdate === true) {
+      this.particleUpdate = false;
 
-		}
+      let positionStartAttribute =
+        this.particleShaderGeo.getAttribute("positionStart");
+      let startTimeAttribute = this.particleShaderGeo.getAttribute("startTime");
+      let colorAttribute = this.particleShaderGeo.getAttribute("color");
+      let sizeAttribute = this.particleShaderGeo.getAttribute("size");
+      let lifeTimeAttribute = this.particleShaderGeo.getAttribute("lifeTime");
 
-		this.particleUpdate = true;
+      // Initialize updateRange if it doesn't exist
+      if (!positionStartAttribute.updateRange)
+        positionStartAttribute.updateRange = { offset: 0, count: -1 };
+      if (!startTimeAttribute.updateRange)
+        startTimeAttribute.updateRange = { offset: 0, count: -1 };
+      if (!colorAttribute.updateRange)
+        colorAttribute.updateRange = { offset: 0, count: -1 };
+      if (!sizeAttribute.updateRange)
+        sizeAttribute.updateRange = { offset: 0, count: -1 };
+      if (!lifeTimeAttribute.updateRange)
+        lifeTimeAttribute.updateRange = { offset: 0, count: -1 };
 
-	}
+      if (this.offset + this.count < this.PARTICLE_COUNT) {
+        positionStartAttribute.updateRange.offset =
+          this.offset * positionStartAttribute.itemSize;
+        startTimeAttribute.updateRange.offset =
+          this.offset * startTimeAttribute.itemSize;
+        colorAttribute.updateRange.offset =
+          this.offset * colorAttribute.itemSize;
+        sizeAttribute.updateRange.offset = this.offset * sizeAttribute.itemSize;
+        lifeTimeAttribute.updateRange.offset =
+          this.offset * lifeTimeAttribute.itemSize;
 
-	init() {
+        positionStartAttribute.updateRange.count =
+          this.count * positionStartAttribute.itemSize;
+        startTimeAttribute.updateRange.count =
+          this.count * startTimeAttribute.itemSize;
+        colorAttribute.updateRange.count = this.count * colorAttribute.itemSize;
+        sizeAttribute.updateRange.count = this.count * sizeAttribute.itemSize;
+        lifeTimeAttribute.updateRange.count =
+          this.count * lifeTimeAttribute.itemSize;
+      } else {
+        positionStartAttribute.updateRange.offset = 0;
+        startTimeAttribute.updateRange.offset = 0;
+        colorAttribute.updateRange.offset = 0;
+        sizeAttribute.updateRange.offset = 0;
+        lifeTimeAttribute.updateRange.offset = 0;
 
-		this.pointsObj3d = new THREE.Points( this.particleShaderGeo, this.particleShaderMat );
-		this.pointsObj3d.scale.set(1.01, 1.01, 1.01);
-		// this.pointsObj3d.material.depthTest = false;
-		this.particleSystem.frustumCulled = false;
-		this.add( this.pointsObj3d );
-	}
+        // Use -1 to update the entire buffer, see #11476
+        positionStartAttribute.updateRange.count = -1;
+        startTimeAttribute.updateRange.count = -1;
+        colorAttribute.updateRange.count = -1;
+        sizeAttribute.updateRange.count = -1;
+        lifeTimeAttribute.updateRange.count = -1;
+      }
 
-	update ( time ) {
+      positionStartAttribute.needsUpdate = true;
+      startTimeAttribute.needsUpdate = true;
+      colorAttribute.needsUpdate = true;
+      sizeAttribute.needsUpdate = true;
+      lifeTimeAttribute.needsUpdate = true;
 
-		this.time = time;
-		this.particleShaderMat.uniforms.uTime.value = time;
+      this.offset = 0;
+      this.count = 0;
+    }
+  }
 
-		this.geometryUpdate();
-
-	}
-
-	geometryUpdate() {
-
-		if ( this.particleUpdate === true ) {
-
-			this.particleUpdate = false;
-
-			let positionStartAttribute = this.particleShaderGeo.getAttribute( 'positionStart' );
-			let startTimeAttribute = this.particleShaderGeo.getAttribute( 'startTime' );
-			let colorAttribute = this.particleShaderGeo.getAttribute( 'color' );
-			let sizeAttribute = this.particleShaderGeo.getAttribute( 'size' );
-			let lifeTimeAttribute = this.particleShaderGeo.getAttribute( 'lifeTime' );
-
-			if ( this.offset + this.count < this.PARTICLE_COUNT ) {
-
-				positionStartAttribute.updateRange.offset = this.offset * positionStartAttribute.itemSize;
-				startTimeAttribute.updateRange.offset = this.offset * startTimeAttribute.itemSize;
-				colorAttribute.updateRange.offset = this.offset * colorAttribute.itemSize;
-				sizeAttribute.updateRange.offset = this.offset * sizeAttribute.itemSize;
-				lifeTimeAttribute.updateRange.offset = this.offset * lifeTimeAttribute.itemSize;
-
-				positionStartAttribute.updateRange.count = this.count * positionStartAttribute.itemSize;
-				startTimeAttribute.updateRange.count = this.count * startTimeAttribute.itemSize;
-				colorAttribute.updateRange.count = this.count * colorAttribute.itemSize;
-				sizeAttribute.updateRange.count = this.count * sizeAttribute.itemSize;
-				lifeTimeAttribute.updateRange.count = this.count * lifeTimeAttribute.itemSize;
-
-			} else {
-
-				positionStartAttribute.updateRange.offset = 0;
-				startTimeAttribute.updateRange.offset = 0;
-				colorAttribute.updateRange.offset = 0;
-				sizeAttribute.updateRange.offset = 0;
-				lifeTimeAttribute.updateRange.offset = 0;
-
-				// Use -1 to update the entire buffer, see #11476
-				positionStartAttribute.updateRange.count = - 1;
-				startTimeAttribute.updateRange.count = - 1;
-				colorAttribute.updateRange.count = - 1;
-				sizeAttribute.updateRange.count = - 1;
-				lifeTimeAttribute.updateRange.count = - 1;
-
-			}
-
-			positionStartAttribute.needsUpdate = true;
-			startTimeAttribute.needsUpdate = true;
-			colorAttribute.needsUpdate = true;
-			sizeAttribute.needsUpdate = true;
-			lifeTimeAttribute.needsUpdate = true;
-
-			this.offset = 0;
-			this.count = 0;
-
-		}
-	}
-
-	dispose() {
-
-		this.particleShaderGeo.dispose();
-
-	}
+  dispose() {
+    this.particleShaderGeo.dispose();
+  }
 }
 
-module.exports = ParticleSystem;
+export default ParticleSystem;

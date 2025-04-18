@@ -1,16 +1,24 @@
 {
-  "name": "threejs-starter",
+  "name": "hologram-display",
   "version": "1.0.0",
   "main": "index.js",
   "repository": "https://github.com/westoncb/threejs-starter",
   "author": "Weston C. Beecroft",
   "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
   "dependencies": {
     "alpha-shape": "^1.0.0",
     "dat.gui": "^0.7.2",
-    "stats-js": "^1.0.0-alpha1",
-    "three": "^0.88.0",
-    "three-orbit-controls": "^82.1.0",
-    "watchify": "^3.9.0"
+    "quickjs-emscripten": "^0.31.0",
+    "stats-js": "^1.0.1",
+    "three": "^0.175.0"
+  },
+  "devDependencies": {
+    "vite": "^6.3.1"
   }
 }

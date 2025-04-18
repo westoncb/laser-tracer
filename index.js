@@ -1,5 +1,5 @@
-const TracerController = require('./tracerController');
+import TracerController from "./tracerController";
 
 window.onload = () => {
-	const controller = new TracerController();
+  const controller = new TracerController();
 };
