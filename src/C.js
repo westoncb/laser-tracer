@@ -8,4 +8,5 @@ export const C = {
   RESIDUE: Symbol("RESIDUE"),
   COLOR: Symbol("COLOR"),
   DEPOSIT: Symbol("DEPOSIT"),
+  FUZZ: Symbol("FUZZ"),
 };

@@ -333,6 +333,14 @@ class ParticleContainer extends THREE.Object3D {
     this.count++;
     this.PARTICLE_CURSOR++;
 
+    // expand GPU draw‑range so the new vertex can appear
+    this.pointsObj3d.geometry.drawRange.count = Math.min(
+      this.pointsObj3d.geometry.drawRange.count === Infinity
+        ? 0
+        : this.pointsObj3d.geometry.drawRange.count + 1,
+      this.PARTICLE_COUNT,
+    );
+
     if (this.PARTICLE_CURSOR >= this.PARTICLE_COUNT) {
       this.PARTICLE_CURSOR = 0;
     }

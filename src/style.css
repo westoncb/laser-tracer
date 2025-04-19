@@ -1,0 +1,63 @@
+/* Global reset / sizing ---------------------------------------------- */
+html,
+body,
+#root {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #111; /* dark backdrop for lasers */
+    color: #ddd;
+    font-family: system-ui, sans-serif;
+}
+
+/* Flex container for the two panes ----------------------------------- */
+.app-container {
+    display: flex;
+    height: 100%;
+}
+
+/* Code editor pane ---------------------------------------------------- */
+.code-pane {
+    flex: 1 1 50%; /* grow, shrink, basis = 50% */
+    min-width: 320px;
+    border-right: 1px solid #222;
+}
+
+/* Canvas / display pane ---------------------------------------------- */
+.canvas-pane {
+    flex: 1 1 50%;
+    min-width: 320px;
+    position: relative; /* anchor the renderer inside */
+}
+
+/* Monaco tweaks (optional) ------------------------------------------- */
+.monaco-editor,
+.monaco-editor-background {
+    background-color: #1e1e1e !important;
+}
+
+.code-pane {
+    position: relative; /* new – anchor the overlay */
+}
+
+/* Monaco editor takes the remaining height */
+.code-pane .monaco-editor {
+    flex: 1 1 auto;
+}
+
+/* Error banner overlays the editor at the bottom */
+.compile-error {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: rgba(34, 0, 0, 0.92);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    border-top: 1px solid #400;
+    pointer-events: none; /* let clicks through to Monaco */
+}
