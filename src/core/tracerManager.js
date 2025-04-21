@@ -10,31 +10,30 @@ import MeshTracer from "./meshTracer";
  *   tracerMgr.runUserProgram = (elapsedMs) => { ... }
  */
 export default class TracerManager {
-  /**
-   * @param {Object} [opts]
-   * @param {boolean} [opts.enableMesh=false]
-   * @param {boolean} [opts.enableLaser=true]
-   * @param {number}  [opts.timeScale=1]   – global slow‑mo / fast‑mo
-   */
-  constructor(
-    renderer,
-    { enableMesh = false, enableLaser = true, timeScale = 1 } = {},
-  ) {
+  constructor() {
+    this.enableMesh = false;
+    this.enableLaser = true;
+    this.timeScale = 1;
+
+    this.init();
+  }
+
+  init() {
     /* --- construct tracers --- */
     this.tracers = {
-      meshTracer: new MeshTracer({ animate: false }),
-      laserTracer: new LaserTracer(renderer, { animate: true }),
+      meshTracer: new MeshTracer(),
+      laserTracer: new LaserTracer(),
     };
 
     /* --- enable/disable table --- */
     this.enableTable = {
-      meshTracer: enableMesh,
-      laserTracer: enableLaser,
+      meshTracer: this.enableMesh,
+      laserTracer: this.enableLaser,
     };
 
     /* --- clock --- */
     this.totalTime = 0;
-    this.timeScale = timeScale;
+    this.timeScale = this.timeScale;
   }
 
   /* -------------------------------------------------------------- */
@@ -79,6 +78,11 @@ export default class TracerManager {
   /** Clean up GPU / memory resources. */
   dispose() {
     Object.values(this.tracers).forEach((t) => t.dispose?.());
+  }
+
+  reset() {
+    this.dispose();
+    this.init();
   }
 
   /* private */

@@ -78,7 +78,9 @@ export default function App() {
     });
   };
 
-  const handleSelect = (key) => setSelectedKey(key);
+  const handleSelect = (key) => {
+    setSelectedKey(key);
+  };
   const handleTitle = setTitle;
 
   /* ----- render ----- */
@@ -105,7 +107,7 @@ export default function App() {
           source={source}
           onChange={handleCodeChange}
           compileErr={compileErr}
-          onEditorReady={() => setMonacoReady(true)} /* already added earlier */
+          onEditorReady={() => setMonacoReady(true)}
         />
       </div>
 
@@ -113,6 +115,7 @@ export default function App() {
         className="canvas-pane"
         srcCode={source}
         compileErrCb={setCompileErr}
+        activeProgram={selectedKey}
       />
 
       <SplashScreen

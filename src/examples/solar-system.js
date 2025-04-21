@@ -28,7 +28,7 @@ function drawCubeFrame(t) {
   const spacingMin = 1.5; // particle spacing for minor lines
   const pulse = Math.sin(t * 0.5) * 0.5 + 0.5; // 0‥1 edge‑glow
 
-  residue(30); // face grid hangs around ≈½ min
+  residue(3);
 
   // ----- minor grid (thinner, dimmer) -----
   size(2);

@@ -36,7 +36,6 @@ function stringifyQJSError(ctx, errHandle) {
 export default class TracerVM {
   /**
    * @param {(errString|null)=>void} onError – banner setter
-   * @param {LaserTracer}            laserTracer
    */
   constructor(onError, laserTracer) {
     this.onError = onError;

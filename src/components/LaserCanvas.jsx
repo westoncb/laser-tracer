@@ -1,6 +1,5 @@
 // LaserCanvas.jsx  –  Three.js + Tracer glue with compile‑error back‑pressure fix
 // -----------------------------------------------------------------------------
-// Free to drop in; only local additions are marked  // ★ NEW
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -13,28 +12,31 @@ import TracerVM from "../core/tracerVM.js";
  * Props
  * ─────
  * srcCode       – user program string
+ * activeProgram – identifier that changes when user switches programs
  * compileErrCb  – function(errString|null) → void   (banner setter)
  * className     – css class for outer div
  */
-export default function LaserCanvas({ srcCode, compileErrCb, className }) {
+export default function LaserCanvas({
+  srcCode,
+  activeProgram,
+  compileErrCb,
+  className,
+}) {
   /* ---------- persistent refs ------------------------------------ */
   const mountRef = useRef(null);
   const vmRef = useRef(null);
   const tracerMgrRef = useRef(null);
   const rafIdRef = useRef(null);
 
+  const cameraRef = useRef(null); // ★ NEW
+  const controlsRef = useRef(null); // ★ NEW
+
   const lastTimeRef = useRef(performance.now());
+  const hasErrorRef = useRef(false); // track compile‑broken state
 
-  // ★ NEW – track whether we’re in a broken‑compile state
-  const hasErrorRef = useRef(false);
-
-  // ★ NEW – wrap the banner setter so we can flip hasErrorRef
   const handleCompileErr = (errStr) => {
     hasErrorRef.current = Boolean(errStr);
-
-    // When an error **clears** we reset the time‑base so Δt starts at 0
-    if (!errStr) lastTimeRef.current = performance.now();
-
+    if (!errStr) lastTimeRef.current = performance.now(); // reset Δt
     compileErrCb?.(errStr);
   };
 
@@ -47,6 +49,7 @@ export default function LaserCanvas({ srcCode, compileErrCb, className }) {
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     camera.position.set(0, 0, 150);
+    cameraRef.current = camera; // ★ NEW
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -56,9 +59,10 @@ export default function LaserCanvas({ srcCode, compileErrCb, className }) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.12;
+    controlsRef.current = controls; // ★ NEW
 
     /* --- Tracer manager + scene graph --------------------------- */
-    const tracerMgr = new TracerManager(renderer);
+    const tracerMgr = new TracerManager();
     tracerMgr.attachToScene(scene);
     tracerMgrRef.current = tracerMgr;
 
@@ -84,17 +88,13 @@ export default function LaserCanvas({ srcCode, compileErrCb, className }) {
 
     /* --- RAF loop ----------------------------------------------- */
     const animate = (now) => {
-      // Skip simulation while code does not compile  ★ NEW
       if (!hasErrorRef.current) {
         const delta = now - lastTimeRef.current;
         lastTimeRef.current = now;
-
-        tracerMgr.update(delta); // vm.tick happens inside update()
+        tracerMgr.update(delta); // vm.tick happens inside
       }
-
       controls.update();
       renderer.render(scene, camera);
-
       rafIdRef.current = requestAnimationFrame(animate);
     };
     rafIdRef.current = requestAnimationFrame(animate);
@@ -117,6 +117,22 @@ export default function LaserCanvas({ srcCode, compileErrCb, className }) {
   useEffect(() => {
     vmRef.current?.loadSource(srcCode);
   }, [srcCode]);
+
+  /* ---------- program switch: reset state ------------------------ */
+  useEffect(() => {
+    tracerMgrRef.current?.reset();
+
+    /* --- also reset camera & controls --------------------------- */
+    const cam = cameraRef.current; // ★ NEW
+    if (cam) {
+      cam.position.set(0, 0, 150);
+      cam.lookAt(0, 0, 0);
+      cam.updateProjectionMatrix();
+    }
+
+    const ctrls = controlsRef.current; // ★ NEW
+    ctrls?.reset(); // OrbitControls has its own reset()
+  }, [activeProgram]);
 
   /* ---------- render -------------------------------------------- */
   return (

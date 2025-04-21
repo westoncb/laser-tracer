@@ -2,7 +2,7 @@
 
 ## Overview
 
-Laser-Tracer is a real-time, 3D vector graphics system that enables dynamic creation of illuminated structures through sandboxed JavaScript scripting using turtle-graphics-style primitives. Users write code within a secure QuickJS environment, leveraging a set of specially provided functions to define visual behavior. Programs are executed automatically per animation frame:
+Laser-Tracer is a real-time, programmable 3D (virtual) vector display that enables the creation of dynamic illuminated structures through sandboxed JavaScript scripting using turtle-graphics-style primitives. Users write code within a secure QuickJS environment, leveraging a set of specially provided functions to define visual/dynamic behavior. Programs are executed automatically once per animation frame:
 
 ```javascript
 function program(timeMs) {
@@ -10,7 +10,7 @@ function program(timeMs) {
 }
 ```
 
-This function generates operations that spawn glowing particles, managed efficiently by an underlying particle system.
+This contains the user program which calls built-in functions that define points or paths along which glowing particles are spawned, mimicing the decay dynamics of real vector displays.
 
 ## Frame Execution Model
 
@@ -24,9 +24,9 @@ This function generates operations that spawn glowing particles, managed efficie
 - **Tracer Pose** (position and orientation) persists automatically.
 - **Brush State** (color, size, fuzz, spacing, residue) also persists automatically.
 
-Particles emitted during frame execution remain visible for their lifetime without needing re-emission.
+Particles emitted during frame execution remain visible for their lifetime and gradually decay visually.
 
-Important: Laser‑Tracer is a phosphor‑style vector display. A line persists only as long as each individual particle’s residue. If you want a line to stay bright indefinitely, you must retrace it every frame (or on some cadence faster than the fade‑out you intend). Think of trace() as “refreshing the stroke” rather than placing a permanent object.
+Important: Laser‑Tracer is a phosphor‑style vector display. A line persists only as long as each individual particle’s residue. If you want a line to stay bright indefinitely, you must retrace it every frame (or on some cadence faster than the fade‑out you intend). Think of trace() as “refreshing the stroke” rather than placing a permanent object (same for points placed with deposit()).
 
 ## Drawing Primitives
 
@@ -62,9 +62,9 @@ Orientation is cumulative, affecting subsequent relative movements.
 ### Brush Parameters
 
 - **`size(px)`**: Diameter of each particle sprite (pixels).
-- **`spacing(d)`**: Distance in world-units between particles emitted by `trace()`.
+- **`spacing(d)`**: Distance in world-units between particles emitted by `trace()`. Has no effect if only `deposit()`s are used.
 - **`residue(s)`**: Lifetime of particles in seconds.
-- **`fuzz(count, sx, sy, sz)`**: Spawns `count` jittered particles around each emitted particle, creating a glow effect.
+- **`fuzz(count, sx, sy, sz)`**: Spawns `count` jittered particles (according to a Gaussian distribution) around each emitted particle.
 
 ### Color Functions
 
@@ -76,18 +76,17 @@ Orientation is cumulative, affecting subsequent relative movements.
 
 ### Particle Lifetime & Persistence
 
-- Each particle emitted remains visible for exactly its `residue` lifetime.
-- Particles persist automatically without needing re-emission each frame.
+- Each particle emitted remains visible for its `residue` lifetime; alpha value goes to zero gradually.
 
 ## Performance Recommendations
 
-- Recommended particle cap: approximately **250,000 visible particles** for smooth 60 FPS performance on mid-range GPUs.
-- Optimal **`spacing`**: ≥ 0.5 world-units. Smaller spacing dramatically increases particle count.
+- Recommended particle cap: approximately **500,000 visible particles** for smooth 60 FPS performance on mid-range GPUs.
+- Be mindful of **`spacing`**: ≥ 0.5 world-units. Smaller spacing dramatically increases particle count.
 - Suggested **`residue`** values:
-  - Short (`0.2–1s`): transient effects like sparks or quick motion trails.
-  - Medium (`1–3s`): dynamic animations and interactive visualizations.
-  - Long (`3–10s`): persistent or slowly evolving structures; use sparingly.
-- Moderate fuzz (`count ≤ 10`) is usually sufficient for glowing visual effects without excessive performance costs. You can also zero out the fuzz completely with fuzz(0) if more basic/sharp lines are desired.
+  - Short (`0.2–1s`).
+  - Medium (`1–3s`).
+  - Long (`3–10s`).
+- Moderate fuzz (`count ≤ 10`) is usually sufficient without excessive performance costs. You can also zero out the fuzz completely with fuzz(0) if more basic/sharp lines are desired.
 
 ## Examples
 

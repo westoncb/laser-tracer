@@ -35,9 +35,7 @@ const deg2rad = (d) => (d * Math.PI) / 180;
 /* ===================================================================== */
 class LaserTracer {
   /* ------------------------------------------------------------------ */
-  constructor(renderer, { animate = false, maxParticles = 500_000 } = {}) {
-    this.animate = animate;
-
+  constructor({ maxParticles = 500_000 } = {}) {
     /* brush state ----------------------------------------------------- */
     this.options = {
       position: new THREE.Vector3(),

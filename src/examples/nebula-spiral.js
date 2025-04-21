@@ -33,8 +33,7 @@ function program(tMs) {
     R1 = 16; // base radius & wobble
 
   size(2); // each micro‑point thickness
-  spacing(5); //  ↓  lower → denser fog, ↑ → streaky
-  residue(100); // trail persistence
+  residue(1);
   fuzz(5, 0.25);
 
   for (let i = 0; i < N; i++) {
