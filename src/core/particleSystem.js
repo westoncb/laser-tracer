@@ -8,6 +8,7 @@
  */
 
 import * as THREE from "three";
+import spriteUrl from "./textures/particle2.png";
 
 class ParticleSystem extends THREE.Object3D {
   constructor(options = {}) {
@@ -23,7 +24,7 @@ class ParticleSystem extends THREE.Object3D {
     /* ── sprite texture ────────────────────────────────────────── */
     const loader = new THREE.TextureLoader();
     this.particleSpriteTex =
-      options.particleSpriteTex || loader.load("./textures/particle2.png");
+      options.particleSpriteTex || loader.load(spriteUrl);
     this.particleSpriteTex.wrapS = this.particleSpriteTex.wrapT =
       THREE.RepeatWrapping;
 
