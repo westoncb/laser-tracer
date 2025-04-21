@@ -68,22 +68,6 @@ body,
     min-width: 320px;
 }
 
-/* Example selector */
-.example-selector {
-    padding: 4px;
-    background: #141414;
-    border-bottom: 1px solid #222;
-}
-
-.example-selector select {
-    background: #222;
-    color: #ddd;
-    border: 1px solid #333;
-    padding: 0.35rem 0.5rem;
-    border-radius: 4px;
-    font-family: inherit;
-}
-
 /* ---------- Code editor ----------------------------------------- */
 .code-pane {
     flex: 1 1 auto;

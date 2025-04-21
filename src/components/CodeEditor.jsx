@@ -1,25 +1,37 @@
 /* ------------------------------------------------------------------
    CodeEditor.jsx – Monaco wrapper (controlled, no autocomplete)
 -------------------------------------------------------------------*/
-
 import Editor from "@monaco-editor/react";
-import { useRef, useEffect, useCallback } from "react";
+import {
+  useRef,
+  useEffect,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 
-export default function CodeEditor({
-  source,
-  onChange,
-  compileErr,
-  onEditorReady,
-}) {
+const CodeEditor = forwardRef(function CodeEditor(
+  { source, onChange, compileErr, onEditorReady },
+  ref,
+) {
   const editorRef = useRef(null);
+
+  // Forward the internal editor reference to the parent
+  useImperativeHandle(ref, () => ({
+    // Expose the entire editor instance or specific methods
+    trigger: (...args) => editorRef.current?.trigger(...args),
+    layout: () => editorRef.current?.layout(),
+    // You can add any other methods you want to expose
+    // This gives the parent direct access to the editor
+    editor: editorRef.current,
+  }));
 
   /* ––––– runs once, right after Monaco is ready ––––– */
   const handleMount = useCallback(
     (editor /*, monaco */) => {
       editorRef.current = editor;
       onEditorReady?.();
-
-      /* next paint → layout, then force full colour pass */
+      /* next paint → layout, then force full colour pass */
       requestAnimationFrame(() => {
         editor.layout();
         editor.trigger("react", "editor.action.forceRetokenize", null);
@@ -65,4 +77,6 @@ export default function CodeEditor({
       {compileErr && <div className="compile-error">{compileErr}</div>}
     </div>
   );
-}
+});
+
+export default CodeEditor;

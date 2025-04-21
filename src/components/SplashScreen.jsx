@@ -6,7 +6,7 @@ import logoUrl from "../assets/laser-tracer-patch-sm.png";
 
 export default function SplashScreen({
   ready, // true when Monaco + QuickJS are ready
-  minDuration = 2000,
+  minDuration = 1000,
   onHide,
 }) {
   const [imgReady, setImgReady] = useState(false);

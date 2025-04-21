@@ -3,7 +3,7 @@
 ----------------------------------------------------------------*/
 import { useState } from "react";
 
-export default function ExampleSelector({
+export default function ControlPanel({
   options,
   title,
   isUserProgram,
@@ -55,7 +55,7 @@ export default function ExampleSelector({
 
   return (
     <>
-      <div className="exsel">
+      <div className="control-panel">
         {/* ── row 1 ── */}
         <div className="row">
           <select value={selectVal} onChange={handleSelect}>
@@ -106,7 +106,7 @@ export default function ExampleSelector({
 
       {/* ――― scoped CSS ――― */}
       <style>{`
-        .exsel {
+        .control-panel {
           display: flex;
           flex-direction: column;
           gap: 0.4rem;

@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import TitleBar from "./TitleBar.jsx";
 import ManualModal from "./ManualModal.jsx";
-import ExampleSelector from "./ExampleSelector.jsx";
+import ControlPanel from "./ControlPanel.jsx";
 import CodeEditor from "./CodeEditor.jsx";
 import LaserCanvas from "./LaserCanvas.jsx";
 import SplashScreen from "./SplashScreen.jsx";
@@ -17,9 +17,10 @@ const SYSTEM_EXAMPLES = examples.map((ex, i) => ({
 
 export default function App() {
   const [compileErr, setCompileErr] = useState(null);
-  const [source, setSource] = useState(examples[0].code); // same
+  const [source, setSource] = useState("");
   const [showManual, setShowManual] = useState(false);
   const [monacoReady, setMonacoReady] = useState(false);
+  const editorRef = useRef(null);
 
   const [userProgs, setUserProgs] = useState(() => {
     const raw = localStorage.getItem("laserTracer_user");
@@ -29,7 +30,9 @@ export default function App() {
   /* ── derived lists & helpers ─────────────────────────────── */
   const combined = [...SYSTEM_EXAMPLES, ...userProgs];
   const findByKey = (k) => combined.find((p) => p.key === k);
-  const [selectedKey, setSelectedKey] = useState(SYSTEM_EXAMPLES[0].key);
+  const [selectedKey, setSelectedKey] = useState(
+    SYSTEM_EXAMPLES.find((e) => e.label === "Solar-system").key,
+  );
   const sel = findByKey(selectedKey);
   const [title, setTitle] = useState(sel.label);
   const isDirty = source !== sel.code;
@@ -84,7 +87,7 @@ export default function App() {
       <TitleBar onManual={() => setShowManual(true)} />
 
       <div className="left-col">
-        <ExampleSelector
+        <ControlPanel
           options={combined}
           selectedKey={selectedKey}
           title={title}
@@ -98,6 +101,7 @@ export default function App() {
         />
 
         <CodeEditor
+          ref={editorRef}
           source={source}
           onChange={handleCodeChange}
           compileErr={compileErr}
@@ -114,7 +118,13 @@ export default function App() {
       <SplashScreen
         ready={monacoReady} // becomes true when Monaco reports ready
         minDuration={800} // tweak to taste
-        onHide={() => {}}
+        onHide={() => {
+          editorRef.current?.trigger(
+            "react",
+            "editor.action.forceRetokenize",
+            null,
+          );
+        }}
       />
 
       {showManual && (
