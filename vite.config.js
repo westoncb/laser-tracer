@@ -5,7 +5,8 @@ import wasm from "vite-plugin-wasm";
 // everything is zero‑config by default;
 // set values only when you actually need them.
 export default defineConfig({
-  root: ".", // your index.html is already at the repo root
+  root: ".",
+  base: "/laser-tracer/",
   server: {
     open: true, // auto‑launch the browser
     port: 5173,
