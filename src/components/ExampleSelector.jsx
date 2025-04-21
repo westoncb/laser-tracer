@@ -105,7 +105,7 @@ export default function ExampleSelector({
       </div>
 
       {/* ――― scoped CSS ――― */}
-      <style jsx>{`
+      <style>{`
         .exsel {
           display: flex;
           flex-direction: column;
@@ -122,7 +122,7 @@ export default function ExampleSelector({
           padding: 0.35rem 0.55rem;
           font-size: 0.95rem;
           background: #222;
-          color: #666;
+          color: #888;
           border: 1px solid #444;
           border-radius: 4px;
         }

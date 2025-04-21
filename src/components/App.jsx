@@ -4,6 +4,7 @@ import ManualModal from "./ManualModal.jsx";
 import ExampleSelector from "./ExampleSelector.jsx";
 import CodeEditor from "./CodeEditor.jsx";
 import LaserCanvas from "./LaserCanvas.jsx";
+import SplashScreen from "./SplashScreen.jsx";
 import examples from "../examples.js";
 import manualMarkdown from "../manual.md?raw";
 
@@ -16,9 +17,9 @@ const SYSTEM_EXAMPLES = examples.map((ex, i) => ({
 
 export default function App() {
   const [compileErr, setCompileErr] = useState(null);
-  const [selectedIdx, setSelectedIdx] = useState(0); // ← new
   const [source, setSource] = useState(examples[0].code); // same
   const [showManual, setShowManual] = useState(false);
+  const [monacoReady, setMonacoReady] = useState(false);
 
   const [userProgs, setUserProgs] = useState(() => {
     const raw = localStorage.getItem("laserTracer_user");
@@ -40,10 +41,6 @@ export default function App() {
   }, [selectedKey]);
 
   /* ----- handlers ----- */
-  const handleExampleChoose = (idx) => {
-    setSelectedIdx(idx);
-    setSource(examples[idx].code);
-  };
   const handleCodeChange = setSource;
 
   const handleNew = () => {
@@ -104,6 +101,7 @@ export default function App() {
           source={source}
           onChange={handleCodeChange}
           compileErr={compileErr}
+          onEditorReady={() => setMonacoReady(true)} /* already added earlier */
         />
       </div>
 
@@ -111,6 +109,12 @@ export default function App() {
         className="canvas-pane"
         srcCode={source}
         compileErrCb={setCompileErr}
+      />
+
+      <SplashScreen
+        ready={monacoReady} // becomes true when Monaco reports ready
+        minDuration={800} // tweak to taste
+        onHide={() => {}}
       />
 
       {showManual && (

@@ -1,36 +1,42 @@
 /* ------------------------------------------------------------------
    SplashScreen.jsx
-   – Page‑wide splash shown while the tool‑chain boots
 -------------------------------------------------------------------*/
 import { useState, useEffect } from "react";
-import logo from "../assets/logo1.png"; // adjust path if needed
+import logoUrl from "../assets/laser-tracer-patch-sm.png";
 
 export default function SplashScreen({
-  ready, // boolean – set true when Monaco + QuickJS are ready
-  minDuration = 800, // ms the splash must stay visible
-  onHide, // callback fired after fade‑out completes
+  ready, // true when Monaco + QuickJS are ready
+  minDuration = 2000,
+  onHide,
 }) {
+  const [imgReady, setImgReady] = useState(false);
   const [start] = useState(() => Date.now());
-  const [fade, setFade] = useState(false); // start fade when conditions met
-  const [gone, setGone] = useState(false); // unmount after fade finishes
+  const [fade, setFade] = useState(false);
+  const [gone, setGone] = useState(false);
 
-  /* Start the fade‑out once both conditions are satisfied */
+  /* kick off a manual load so we know exactly when the bitmap is decoded */
   useEffect(() => {
-    if (!ready || fade) return; // nothing to do yet
+    const img = new Image();
+    img.src = logoUrl;
+    img.onload = () => setImgReady(true);
+  }, []);
+
+  /* begin fade‑out once all conditions met */
+  useEffect(() => {
+    if (!ready || !imgReady || fade) return;
     const elapsed = Date.now() - start;
     const delay = Math.max(0, minDuration - elapsed);
-
     const t = setTimeout(() => setFade(true), delay);
     return () => clearTimeout(t);
-  }, [ready, minDuration, start, fade]);
+  }, [ready, imgReady, minDuration, start, fade]);
 
-  /* After fade transition, unmount + notify */
+  /* unmount + notify */
   useEffect(() => {
     if (!fade) return;
     const t = setTimeout(() => {
       setGone(true);
-      onHide?.(); // fire callback
-    }, 250); // keep in sync with CSS transition time
+      onHide?.();
+    }, 250); // sync with CSS transition
     return () => clearTimeout(t);
   }, [fade, onHide]);
 
@@ -38,7 +44,28 @@ export default function SplashScreen({
 
   return (
     <div className={`splash-overlay${fade ? " fade-out" : ""}`}>
-      <img src={logo} alt="Laser‑Tracer logo" className="splash-logo" />
+      {imgReady ? (
+        <img src={logoUrl} alt="Laser‑Tracer logo" className="splash-logo" />
+      ) : (
+        /* lightweight fallback – inline SVG spinner */
+        <svg
+          className="spin"
+          width="64"
+          height="64"
+          viewBox="0 0 64 64"
+          stroke="#eee"
+        >
+          <circle
+            cx="32"
+            cy="32"
+            r="28"
+            fill="none"
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeDasharray="44 188"
+          />
+        </svg>
+      )}
     </div>
   );
 }
