@@ -16,11 +16,14 @@ export default class TracerManager {
    * @param {boolean} [opts.enableLaser=true]
    * @param {number}  [opts.timeScale=1]   – global slow‑mo / fast‑mo
    */
-  constructor({ enableMesh = false, enableLaser = true, timeScale = 1 } = {}) {
+  constructor(
+    renderer,
+    { enableMesh = false, enableLaser = true, timeScale = 1 } = {},
+  ) {
     /* --- construct tracers --- */
     this.tracers = {
       meshTracer: new MeshTracer({ animate: false }),
-      laserTracer: new LaserTracer({ animate: true }),
+      laserTracer: new LaserTracer(renderer, { animate: true }),
     };
 
     /* --- enable/disable table --- */

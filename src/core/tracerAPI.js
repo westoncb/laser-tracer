@@ -72,7 +72,7 @@ export const PRELUDE = `
  const moveRel  = (dx,dy,dz)   => emit('MOVE_REL', dx,dy,dz);
  const traceRel = (dx,dy,dz)   => emit('TRACE_REL',dx,dy,dz);
 
- const turn     = (d)          => emit('TURN',     d);
+ const yaw     = (d)          => emit('YAW',     d);
  const pitch    = (d)          => emit('PITCH',    d);
  const roll     = (d)          => emit('ROLL',     d);
  const push     = (d)          => emit('PUSH',     d);

@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import alphaShape from "alpha-shape";
 
+/* This is an ooold legacy piece of code/idea */
+
 class MeshTracer {
   constructor(options = {}) {
     this.animate = options.animate;

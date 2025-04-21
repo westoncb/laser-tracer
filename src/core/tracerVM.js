@@ -1,6 +1,9 @@
 // TracerVM.js – owns QuickJS, compilation, opcode replay
-import { bindEmit, flushOps, buildProgramWrapper } from "./tracerAPI";
-import { replayOps } from "./tracerOps";
+// ==============================================================
+
+import { bindEmit, flushOps, buildProgramWrapper } from "./tracerAPI.js";
+import { replayOps } from "./tracerOps.js";
+
 import variant from "@jitl/quickjs-singlefile-browser-release-sync";
 import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
 
@@ -9,8 +12,7 @@ import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
 /* ------------------------------------------------------------------ */
 
 /**
- * Construct a readable string from a QuickJS error handle.
- * Handles plain strings, JS Error objects, and JSON‑able values.
+ * Build a readable string from a QuickJS error handle.
  */
 function stringifyQJSError(ctx, errHandle) {
   const dumped = ctx.dump(errHandle);
@@ -20,7 +22,6 @@ function stringifyQJSError(ctx, errHandle) {
     const { name = "Error", message = "", stack = "" } = dumped;
     return `${name}: ${message}${stack ? "\n" + stack : ""}`;
   }
-
   try {
     return JSON.stringify(dumped);
   } catch {
@@ -34,7 +35,7 @@ function stringifyQJSError(ctx, errHandle) {
 
 export default class TracerVM {
   /**
-   * @param {(errString|null)=>void} onError    – compile/runtime banner setter
+   * @param {(errString|null)=>void} onError – banner setter
    * @param {LaserTracer}            laserTracer
    */
   constructor(onError, laserTracer) {
@@ -42,8 +43,11 @@ export default class TracerVM {
     this.laserTracer = laserTracer;
 
     /* async‑initialisation bookkeeping */
-    this._ready = false; // true once QuickJS context exists
-    this._queuedSrc = null; // last source edit that arrived pre‑init
+    this._ready = false;
+    this._queuedSrc = null;
+
+    // ★ NEW – track if we’re currently in an error state
+    this.hasError = false;
   }
 
   /* ---------- QuickJS spin‑up ------------------------------------- */
@@ -54,7 +58,6 @@ export default class TracerVM {
 
     this._ready = true;
 
-    /* compile the latest queued source if one arrived early */
     if (this._queuedSrc !== null) {
       const src = this._queuedSrc;
       this._queuedSrc = null;
@@ -64,7 +67,6 @@ export default class TracerVM {
 
   /* ---------- compile / recompile user source --------------------- */
   loadSource(src) {
-    /* Not ready?  Remember the request and bail out. */
     if (!this._ready) {
       this._queuedSrc = src;
       return;
@@ -74,14 +76,14 @@ export default class TracerVM {
     const res = this.ctx.evalCode(wrapped);
 
     if (res.error) {
-      this.onError(stringifyQJSError(this.ctx, res.error));
-      res.error.dispose(); // avoid leaks
-      this.programHandle?.dispose?.();
-      this.programHandle = null;
+      this._enterError(stringifyQJSError(this.ctx, res.error));
+      res.error.dispose();
       return;
     }
 
-    this.onError(null); // clear banner
+    // success  →  reset error state
+    this.hasError = false;
+    this.onError(null);
 
     /* Hold handle to globalThis.program */
     this.programHandle?.dispose?.();
@@ -90,9 +92,9 @@ export default class TracerVM {
 
   /* ---------- run one frame and push ops to laserTracer ----------- */
   tick(timeMs) {
-    if (!this._ready || !this.programHandle) return;
+    if (this.hasError || !this._ready || !this.programHandle) return;
 
-    /* program(time) */
+    /* program(timeMs) */
     const t = this.ctx.newNumber(timeMs);
     const res = this.ctx.callFunction(
       this.programHandle,
@@ -102,20 +104,24 @@ export default class TracerVM {
     t.dispose();
 
     if (res.error) {
-      const pretty = stringifyQJSError(this.ctx, res.error);
-      console.error("Runtime error in user program:", pretty);
-      this.onError(pretty);
+      this._enterError(stringifyQJSError(this.ctx, res.error));
       res.error.dispose();
       return;
     }
     res.value?.dispose();
 
-    /* Pull opcodes produced by tracerAPI and replay them */
+    /* Pull opcodes and replay */
     const ops = flushOps();
-    console.log("ops", ops.length);
-    if (ops.length) {
-      replayOps(this.laserTracer, ops);
-    }
+    if (ops.length) replayOps(this.laserTracer, ops);
+  }
+
+  /* ---------- enter error state (compile OR runtime) -------------- */
+  _enterError(msg) {
+    // ★ NEW helper
+    this.hasError = true;
+    this.onError(msg);
+    this.programHandle?.dispose?.();
+    this.programHandle = null;
   }
 
   /* ---------- tidy‑up --------------------------------------------- */

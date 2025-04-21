@@ -1,4 +1,7 @@
-// DisplayCanvas.jsx
+// LaserCanvas.jsx  –  Three.js + Tracer glue with compile‑error back‑pressure fix
+// -----------------------------------------------------------------------------
+// Free to drop in; only local additions are marked  // ★ NEW
+
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -11,15 +14,29 @@ import TracerVM from "../core/tracerVM.js";
  * ─────
  * srcCode       – user program string
  * compileErrCb  – function(errString|null) → void   (banner setter)
- * className     – optional css class for outer div
+ * className     – css class for outer div
  */
-export default function DisplayCanvas({ srcCode, compileErrCb, className }) {
+export default function LaserCanvas({ srcCode, compileErrCb, className }) {
   /* ---------- persistent refs ------------------------------------ */
-  const mountRef = useRef(null); // <div> that hosts the canvas
-  const vmRef = useRef(null); // TracerVM instance
-  const tracerMgrRef = useRef(null); // TracerManager instance
-  const rafIdRef = useRef(null); // requestAnimationFrame id
+  const mountRef = useRef(null);
+  const vmRef = useRef(null);
+  const tracerMgrRef = useRef(null);
+  const rafIdRef = useRef(null);
+
   const lastTimeRef = useRef(performance.now());
+
+  // ★ NEW – track whether we’re in a broken‑compile state
+  const hasErrorRef = useRef(false);
+
+  // ★ NEW – wrap the banner setter so we can flip hasErrorRef
+  const handleCompileErr = (errStr) => {
+    hasErrorRef.current = Boolean(errStr);
+
+    // When an error **clears** we reset the time‑base so Δt starts at 0
+    if (!errStr) lastTimeRef.current = performance.now();
+
+    compileErrCb?.(errStr);
+  };
 
   /* ---------- first‑mount boot‑strap ------------------------------ */
   useEffect(() => {
@@ -39,18 +56,16 @@ export default function DisplayCanvas({ srcCode, compileErrCb, className }) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.12;
-    controls.target.set(0, 0, 0);
 
     /* --- Tracer manager + scene graph --------------------------- */
-    const tracerMgr = new TracerManager(); // defaults: laser on
+    const tracerMgr = new TracerManager(renderer);
     tracerMgr.attachToScene(scene);
     tracerMgrRef.current = tracerMgr;
 
     /* --- QuickJS VM --------------------------------------------- */
-    const vm = new TracerVM(compileErrCb, tracerMgr.tracers.laserTracer);
+    const vm = new TracerVM(handleCompileErr, tracerMgr.tracers.laserTracer);
     vmRef.current = vm;
 
-    /* inject callback once VM is ready */
     vm.init().then(() => {
       tracerMgr.runUserProgram = (elapsed) => vm.tick(elapsed);
       vm.loadSource(srcCode);
@@ -59,7 +74,7 @@ export default function DisplayCanvas({ srcCode, compileErrCb, className }) {
     /* --- resize helper ------------------------------------------ */
     const resize = () => {
       const { clientWidth: w, clientHeight: h } = mount;
-      if (h === 0) return; // hidden/collapsed
+      if (h === 0) return;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
@@ -69,10 +84,14 @@ export default function DisplayCanvas({ srcCode, compileErrCb, className }) {
 
     /* --- RAF loop ----------------------------------------------- */
     const animate = (now) => {
-      const delta = now - lastTimeRef.current;
-      lastTimeRef.current = now;
+      // Skip simulation while code does not compile  ★ NEW
+      if (!hasErrorRef.current) {
+        const delta = now - lastTimeRef.current;
+        lastTimeRef.current = now;
 
-      tracerMgr.update(delta); // calls vm.tick inside
+        tracerMgr.update(delta); // vm.tick happens inside update()
+      }
+
       controls.update();
       renderer.render(scene, camera);
 
@@ -91,8 +110,8 @@ export default function DisplayCanvas({ srcCode, compileErrCb, className }) {
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
-    // eslint‑disable‑next‑line react‑hooks/exhaustive‑deps
-  }, []); // run exactly once
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // mount‑once
 
   /* ---------- recompile when user edits -------------------------- */
   useEffect(() => {

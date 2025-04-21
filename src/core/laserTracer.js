@@ -1,13 +1,12 @@
 // LaserTracer.js – unified target for tracerOps.replayOps()
 // ---------------------------------------------------------
-// ‑ maintains turtle position/orientation, brush state, particle spawning
+// ‑ maintains tracer position/orientation, brush state, particle spawning
 // ‑ expose *only* verbs that appear in HANDLERS (tracerOps.js)
 //
 // 2025‑04‑18
 
 import * as THREE from "three";
 import ParticleSystem from "./particleSystem.js";
-import { replayOps } from "./tracerOps.js"; // for optional direct use
 
 /* ---------- fast N(0,1) RNG (Marsaglia polar, cached) ---------------- */
 const gauss = (() => {
@@ -36,7 +35,7 @@ const deg2rad = (d) => (d * Math.PI) / 180;
 /* ===================================================================== */
 class LaserTracer {
   /* ------------------------------------------------------------------ */
-  constructor({ animate = false, maxParticles = 250_000 } = {}) {
+  constructor(renderer, { animate = false, maxParticles = 500_000 } = {}) {
     this.animate = animate;
 
     /* brush state ----------------------------------------------------- */
@@ -50,9 +49,9 @@ class LaserTracer {
     this.spawnDistance = 0.03; // spacing()
     this.fuzzBrush = { count: 0, sx: 0, sy: 0, sz: 0 };
 
-    /* turtle pose ----------------------------------------------------- */
-    this.turtlePos = new THREE.Vector3();
-    this.turtleRot = new THREE.Quaternion();
+    /* tracer pose ----------------------------------------------------- */
+    this.tracerPos = new THREE.Vector3();
+    this.tracerRot = new THREE.Quaternion();
 
     /* push/pop stack -------------------------------------------------- */
     this.stack = [];
@@ -61,6 +60,8 @@ class LaserTracer {
     this.particleSystem = new ParticleSystem({ maxParticles });
     this.obj3d = new THREE.Object3D();
     this.obj3d.add(this.particleSystem);
+
+    this.scratch = new THREE.Vector3();
   }
 
   /* ---------- brush setters ----------------------------------------- */
@@ -83,40 +84,40 @@ class LaserTracer {
   /* ---------- movement helpers -------------------------------------- */
   move(worldPos) {
     this.options.position.copy(worldPos);
-    this.turtlePos.copy(worldPos);
+    this.tracerPos.copy(worldPos);
   }
 
   trace(worldDest) {
     // spawn particles along line
-    const dir = worldDest.clone().sub(this.turtlePos);
+    const dir = worldDest.clone().sub(this.tracerPos);
     const dist = dir.length();
     if (!dist) return;
     dir.normalize();
     const steps = dist / this.spawnDistance;
     for (let i = 0; i < steps; i++) {
-      this.turtlePos.addScaledVector(dir, this.spawnDistance);
-      this._spawnWithFuzz(this.turtlePos);
+      this.tracerPos.addScaledVector(dir, this.spawnDistance);
+      this._spawnWithFuzz(this.tracerPos);
     }
-    this.turtlePos.copy(worldDest);
+    this.tracerPos.copy(worldDest);
   }
 
   moveRel(localVec) {
     const world = localVec
       .clone()
-      .applyQuaternion(this.turtleRot)
-      .add(this.turtlePos);
+      .applyQuaternion(this.tracerRot)
+      .add(this.tracerPos);
     this.move(world);
   }
   traceRel(localVec) {
     const world = localVec
       .clone()
-      .applyQuaternion(this.turtleRot)
-      .add(this.turtlePos);
+      .applyQuaternion(this.tracerRot)
+      .add(this.tracerPos);
     this.trace(world);
   }
 
-  /* ---------- turtle orientation ------------------------------------ */
-  turn(deg) {
+  /* ---------- tracer orientation ------------------------------------ */
+  yaw(deg) {
     this._rotateAroundAxis(new THREE.Vector3(0, 1, 0), deg);
   }
   pitch(deg) {
@@ -127,14 +128,14 @@ class LaserTracer {
   }
   _rotateAroundAxis(axis, deg) {
     const q = new THREE.Quaternion().setFromAxisAngle(axis, deg2rad(deg));
-    this.turtleRot.multiply(q);
+    this.tracerRot.multiply(q);
   }
 
   /* ---------- stack -------------------------------------------------- */
   push() {
     this.stack.push({
-      pos: this.turtlePos.clone(),
-      rot: this.turtleRot.clone(),
+      pos: this.tracerPos.clone(),
+      rot: this.tracerRot.clone(),
       opts: { ...this.options },
       fuzz: { ...this.fuzzBrush },
       space: this.spawnDistance,
@@ -143,12 +144,12 @@ class LaserTracer {
   pop() {
     const s = this.stack.pop();
     if (!s) return;
-    this.turtlePos.copy(s.pos);
-    this.turtleRot.copy(s.rot);
+    this.tracerPos.copy(s.pos);
+    this.tracerRot.copy(s.rot);
     this.options = { ...this.options, ...s.opts };
     this.fuzzBrush = { ...s.fuzz };
     this.spawnDistance = s.space;
-    this.options.position.copy(this.turtlePos); // teleport
+    this.options.position.copy(this.tracerPos); // teleport
   }
 
   /* ---------- internal particle helper ------------------------------ */
@@ -161,12 +162,9 @@ class LaserTracer {
     ps.spawnParticle(this.options);
 
     for (let i = 0; i < count; i++) {
-      const jitter = new THREE.Vector3(
-        gauss() * sx,
-        gauss() * sy,
-        gauss() * sz,
-      );
-      position.addVectors(basePos, jitter);
+      //jitter
+      this.scratch.set(gauss() * sx, gauss() * sy, gauss() * sz);
+      position.addVectors(basePos, this.scratch);
       ps.spawnParticle(this.options);
     }
   }
@@ -174,8 +172,8 @@ class LaserTracer {
   /** Drop one (or fuzz‑spray many) particle at an absolute position */
   deposit(worldPos) {
     this._spawnWithFuzz(worldPos);
-    // keep turtle in sync so subsequent MOVE_REL/TRACE_REL are intuitive
-    this.turtlePos.copy(worldPos);
+    // keep tracer in sync so subsequent MOVE_REL/TRACE_REL are intuitive
+    this.tracerPos.copy(worldPos);
   }
 
   /** advance particle sim */
