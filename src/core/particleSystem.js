@@ -8,7 +8,7 @@
  */
 
 import * as THREE from "three";
-import spriteUrl from "./textures/particle2.png";
+import spriteUrl from "../assets/particle2.png";
 
 class ParticleSystem extends THREE.Object3D {
   constructor(options = {}) {
