@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import useMedia from "../hooks/useMedia.js";
+import TabBar from "./TabBar.jsx";
 import TitleBar from "./TitleBar.jsx";
 import ManualModal from "./ManualModal.jsx";
 import ControlPanel from "./ControlPanel.jsx";
@@ -20,6 +22,8 @@ export default function App() {
   const [source, setSource] = useState("");
   const [showManual, setShowManual] = useState(false);
   const [monacoReady, setMonacoReady] = useState(false);
+  const [activeTab, setActiveTab] = useState("canvas");
+  const isPhone = useMedia("(max-width: 768px)");
   const editorRef = useRef(null);
 
   const [userProgs, setUserProgs] = useState(() => {
@@ -85,7 +89,11 @@ export default function App() {
 
   /* ----- render ----- */
   return (
-    <div className="app-root">
+    <div
+      className={
+        "app-root " + (isPhone ? `${activeTab}-active tabbed` : "desktop")
+      }
+    >
       <TitleBar onManual={() => setShowManual(true)} />
 
       <div className="left-col">
@@ -102,13 +110,17 @@ export default function App() {
           onDelete={handleDelete}
         />
 
-        <CodeEditor
-          ref={editorRef}
-          source={source}
-          onChange={handleCodeChange}
-          compileErr={compileErr}
-          onEditorReady={() => setMonacoReady(true)}
-        />
+        {isPhone && <TabBar active={activeTab} onChange={setActiveTab} />}
+
+        <div className="code-pane">
+          <CodeEditor
+            ref={editorRef}
+            source={source}
+            onChange={handleCodeChange}
+            compileErr={compileErr}
+            onEditorReady={() => setMonacoReady(true)}
+          />
+        </div>
       </div>
 
       <LaserCanvas

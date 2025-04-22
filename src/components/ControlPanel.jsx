@@ -1,6 +1,3 @@
-/* --------------------------------------------------------------
-   ExampleSelector.jsx – dropdown + new/title/save/delete
-----------------------------------------------------------------*/
 import { useState } from "react";
 
 export default function ControlPanel({
@@ -116,24 +113,62 @@ export default function ControlPanel({
           display: flex;
           align-items: center;
           gap: 0.4rem;
+          flex-wrap: nowrap;
         }
         select {
           flex: 1 1 auto;
           padding: 0.35rem 0.55rem;
           font-size: 0.95rem;
           background: #222;
-          color: #20a64f;
+          color: #60d088;
           border: 1px solid #444;
           border-radius: 4px;
         }
+        select,
+        input.title {
+          width: 100%;
+          min-width: 0;   /* break “unqueezable” default */
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        /* --------------------------------------------------------------
+           Title field – idle vs. edit states
+        -------------------------------------------------------------- */
         .title {
           flex: 1 1 auto;
-          padding: 0.35rem 0.55rem;
-          font-size: 0.95rem;
-          background: #222;
+          width: 100%;
+          min-width: 0;
+
+          /* idle look: just text */
+          padding: .25rem .5rem;
+          background: transparent;
+          border: none;
           color: #eee;
-          border: 1px solid #444;
+          font-size: 1rem;
+          font-weight: 600;        /* feels like a heading */
+          cursor: text;            /* invite click‑to‑edit */
+
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+
+        .title:disabled {          /* system examples – still text‑like */
+          opacity: .65;
+          cursor: default;
+        }
+
+        /* subtle affordance */
+        .title:not(:disabled):hover {
+          background: rgba(255,255,255,.05);
+        }
+
+        /* editing chrome */
+        .title:not(:disabled):focus {
+          background: #222;
+          border: 1px solid #4b6;
           border-radius: 4px;
+          outline: none;
+          color: #eee;
         }
         .btn {
           width: 34px;
