@@ -40,8 +40,9 @@ function program(tMs) {
     y: 20 * Math.cos(t * 0.19 + 0.7),
   };
 
-  size(3);
-  residue(6);
+  size(6);
+  residue(3);
+  fuzz(0);
 
   for (let i = 0; i <= CELLS; i++) {
     for (let j = 0; j <= CELLS; j++) {
