@@ -1,64 +1,72 @@
-/*──────────────────────────────────────────────────────────────────────
-  LASER‑TRACER · TEXT SHOWCASE
-  ──────────────────────────────────────────────────────────────────────
-  Primitives used
-  ───────────────
-  • drawText / drawTextRel
-  • push / pop transform stack
-  • yaw / pitch / roll
-  • relative motion & phosphor persistence tweaks
-──────────────────────────────────────────────────────────────────────*/
+/* ================================================================
+   WORD‑CUBE — transform‑hierarchy & text‑helper playground
+   --------------------------------------------------------------- */
+
 function program(timeMs) {
-  const t = timeMs * 0.001; // seconds
+  const t = timeMs * 0.001;
 
-  /* Global settings — good defaults for text */
-  size(4);
-  spacing(0.2); // fine spacing for smooth strokes
-  residue(5); // medium fade
-  fuzz(3, 0.15); // slight glow
-  colorHSV((t * 0.02) % 1, 1, 1);
+  /* ── global defaults ───────────────────────────────────────── */
+  size(4); // sprite diameter
+  spacing(0.5); // smooth text strokes
+  residue(0.25); // medium fade
+  fuzz(8, 0.2); // gentle glow
 
-  /* ───────── Static title ───────── */
+  /* ───────── rotating master frame ───────── */
   push();
-  drawText("LASER TRACER", 0, 15, 0, 6); // centred on X axis
-  pop();
+  yaw(t * 15); // slow spin around Y
+  pitch(Math.sin(t * 0.3) * 20); // gentle nod
+  roll(Math.cos(t * 0.4) * 10); // subtle bank
 
-  /* ───────── Orbiting digit ring ─────────
-     Ten digits march around the origin at 30‑unit radius          */
-  push();
-  yaw(t * 20); // whole ring rotates
-  const radius = 30;
-  const step = (Math.PI * 2) / 10; // 10 glyphs
+  const L = 25; // half‑extent of cube faces
 
-  for (let i = 0; i < 10; i++) {
-    push();
-    yaw(i * step * (180 / Math.PI)); // place glyph along ring
-    moveRel(radius, 0, 0);
-    size(3);
-    colorHSV((i / 10 + t * 0.1) % 1, 0.8, 1);
-    drawTextRel(String(i), 0, 0, 0, 3); // local frame
-    pop();
+  /* Face descriptors: rotation (deg), hue, placeholder word */
+  const faces = [
+    { rot: [0, 0, 0], hue: 0.0, word: "FRONT" },
+    { rot: [0, 180, 0], hue: 0.1, word: "BACK" },
+    { rot: [0, -90, 0], hue: 0.23, word: "LEFT" },
+    { rot: [0, 90, 0], hue: 0.35, word: "RIGHT" },
+    { rot: [90, 0, 0], hue: 0.5, word: "TOP" },
+    { rot: [-90, 0, 0], hue: 0.65, word: "BOTTOM" },
+  ];
+
+  for (const f of faces) {
+    push(); // —— face frame ——
+    /* orient the frame so +Z faces outward */
+    pitch(f.rot[0]);
+    yaw(f.rot[1]);
+    roll(f.rot[2]);
+
+    /* move out to the face plane */
+    moveRel(0, 0, -L);
+
+    /* central word */
+    colorHSV((f.hue + t * 0.05) % 1, 0.9, 1);
+    drawTextRel(f.word, 0, 0, 0, 6); // height = 6 world‑units
+
+    /* nested letter ring around the word ------------------- */
+    const letters = f.word.split("");
+    const ringRadius = 10;
+    const dθ = 360 / letters.length;
+
+    for (let i = 0; i < letters.length; i++) {
+      push(); // — letter frame —
+      yaw(i * dθ); // place around circle
+      moveRel(ringRadius, 0, 0); // slide outward
+      pitch(90); // stand letters upright
+
+      size(3);
+      colorHSV((f.hue + i * 0.07 + t * 0.15) % 1, 0.8, 0.9);
+      drawTextRel(letters[i], 0, 0, 0, 3);
+      pop();
+    }
+    pop(); // —— /face frame ——
   }
-  pop();
+  pop(); // —— /master frame ——
 
-  /* ───────── Spinning HELLO WORLD ───────── */
-  push();
-  yaw(t * 30); // slow spin around Y
-  pitch(Math.sin(t) * 20);
-  roll(Math.cos(t * 0.7) * 15);
-
-  moveRel(0, -10, -25); // pull a bit toward camera
-  size(5);
-  colorHex(0x55eaff);
-  residue(1.2); // shorter trail for blur‑like effect
-  fuzz(8, 0.3); // softer glow
-  drawTextRel("HELLO WORLD", 0, 0, 0, 5);
-  pop();
-
-  /* ───────── Debug origin ───────── */
+  /* origin reference dot */
   residue(0.5);
+  size(5);
   fuzz(0);
-  size(6);
   colorHex(0xffffff);
-  deposit(0, 0, 0); // white dot at world origin
+  deposit(0, 0, 0);
 }

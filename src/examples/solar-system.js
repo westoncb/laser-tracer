@@ -47,7 +47,7 @@ function drawCubeFrame(t) {
   // ---------- 2. outer cube edges (pulse every frame) ---------------
   residue(6);
   size(2.2);
-  spacing(0.5);
+  spacing(0.1);
   fuzz(0);
   colorHSV(0.35, 0.6, 0.8 + pulse * 0.2);
 
