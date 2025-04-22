@@ -46,6 +46,7 @@ class LaserTracer {
     };
     this.spawnDistance = 0.03; // spacing()
     this.fuzzBrush = { count: 0, sx: 0, sy: 0, sz: 0 };
+    this.timeSeconds = 0;
 
     /* tracer pose ----------------------------------------------------- */
     this.tracerPos = new THREE.Vector3();
@@ -157,13 +158,13 @@ class LaserTracer {
     const { count, sx, sy, sz } = this.fuzzBrush;
 
     position.copy(basePos);
-    ps.spawnParticle(this.options);
+    ps.spawnParticle(this.timeSeconds, this.options);
 
     for (let i = 0; i < count; i++) {
       //jitter
       this.scratch.set(gauss() * sx, gauss() * sy, gauss() * sz);
       position.addVectors(basePos, this.scratch);
-      ps.spawnParticle(this.options);
+      ps.spawnParticle(this.timeSeconds, this.options);
     }
   }
 
@@ -175,12 +176,18 @@ class LaserTracer {
   }
 
   /** advance particle sim */
-  update(totalTimeMs) {
-    this.particleSystem.update((this.animate ? totalTimeMs : 100) / 1000);
+  update(timeSeconds) {
+    this.timeSeconds = timeSeconds;
+    this.particleSystem.update(timeSeconds);
   }
 
   getSceneGraphNode() {
     return this.obj3d;
+  }
+
+  dispose() {
+    this.obj3d.parent?.remove(this.obj3d);
+    this.particleSystem.dispose();
   }
 }
 

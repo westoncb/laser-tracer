@@ -1,10 +1,10 @@
 /*  ParticleSystem.js  ──────────────────────────────────────────────
  *  CPU‑side particle simulator using packed & interleaved attributes
  *  — positionStart.xyz          (float)  ┐
- *  — sizeLifeStart.xyz          (float)  │  InterleavedBuffer 28 B
+ *  — sizeLifeStart.xyz          (float)  │  InterleavedBuffer 28 B
  *  — color.rgb (normalised)     (uint8)  ┘
- *  ≈ 28 bytes per particle  (was 76 B)
- *  Adapted from flimshaw “GPU Particle System” → distance‑driven spawn
+ *  ≈ 28 bytes per particle
+ *  Adapted from flimshaw “GPU Particle System” → distance‑driven spawn
  */
 
 import * as THREE from "three";
@@ -44,10 +44,6 @@ class ParticleSystem extends THREE.Object3D {
       fragmentShader: shaders.fragmentShader,
     });
 
-    /* ── fast RNG (pre‑generated) ──────────────────────────────── */
-    this.rand = Array.from({ length: 100_000 }, () => Math.random() - 0.5);
-    this.randIndex = 0;
-
     /* ── containers ────────────────────────────────────────────── */
     this.PARTICLE_CURSOR = 0;
     this.particleContainers = [];
@@ -58,23 +54,16 @@ class ParticleSystem extends THREE.Object3D {
     }
   }
 
-  /* deterministic random helper (uses pre‑generated table) */
-  random() {
-    return ++this.randIndex >= this.rand.length
-      ? this.rand[(this.randIndex = 1)]
-      : this.rand[this.randIndex];
-  }
-
   /* external emitter API --------------------------------------------------- */
-  spawnParticle(options) {
+  spawnParticle(timeSeconds, options) {
     if (++this.PARTICLE_CURSOR >= this.PARTICLE_COUNT) this.PARTICLE_CURSOR = 0;
     const idx = Math.floor(this.PARTICLE_CURSOR / this.PARTICLES_PER_CONTAINER);
-    this.particleContainers[idx].spawnParticle(options);
+    this.particleContainers[idx].spawnParticle(timeSeconds, options);
   }
 
-  update(time) {
-    this.particleShaderMat.uniforms.uTime.value = time;
-    for (const c of this.particleContainers) c.update(time);
+  update(timeSeconds) {
+    this.particleShaderMat.uniforms.uTime.value = timeSeconds;
+    for (const c of this.particleContainers) c.update(timeSeconds);
   }
 
   dispose() {
@@ -85,7 +74,7 @@ class ParticleSystem extends THREE.Object3D {
 
   /* ── shader source ─────────────────────────────────────────── */
   static getShaderStrings() {
-    const vertexShader = /* glsl */ `
+    const vertexShader = `
       uniform float uTime;
       uniform float uScale;
 
@@ -121,7 +110,7 @@ class ParticleSystem extends THREE.Object3D {
         gl_Position = projectionMatrix * mvPos;
       }`;
 
-    const fragmentShader = /* glsl */ `
+    const fragmentShader = `
       varying vec4 vColor;
       varying float lifeLeft;
       uniform sampler2D tSprite;
@@ -150,12 +139,10 @@ class ParticleContainer extends THREE.Object3D {
     super();
 
     this.FREE_CURSOR = 0; // next guaranteed‑free slot
-    this.FRAME_ADVANCE = 0; // how many we advanced this frame (debug/optional)
 
     /* basic bookkeeping */
     this.PARTICLE_COUNT = maxParticles;
     this.PARTICLE_CURSOR = 0;
-    this.time = 0;
     this.count = 0;
     this.offset = 0;
     this.DPR = window.devicePixelRatio;
@@ -165,7 +152,7 @@ class ParticleContainer extends THREE.Object3D {
     /* ── geometry with packed attributes ───────────────────────── */
     this.particleShaderGeo = new THREE.BufferGeometry();
 
-    /* STRIDE = 7 floats (28 bytes) */
+    /* STRIDE = 7 floats (28 bytes) */
     const STRIDE = 7;
     const f32 = new Float32Array(this.PARTICLE_COUNT * STRIDE);
     const iBuffer = new THREE.InterleavedBuffer(f32, STRIDE).setUsage(
@@ -214,12 +201,17 @@ class ParticleContainer extends THREE.Object3D {
   /* ---------------------------------------------------------------------- */
   /*  Spawn                                                                 */
   /* ---------------------------------------------------------------------- */
-  spawnParticle(opts = {}) {
+  spawnParticle(timeSeconds, opts = {}) {
     /* bail out if ring is still totally full --------------------- */
     const i = this.FREE_CURSOR;
     const STRIDE = 7;
     const base = i * STRIDE;
     const arrF32 = this.attrPositionStart.data.array;
+
+    if (this.count === undefined) {
+      this.count = 0;
+    }
+    this.count++;
 
     /* ---------- write packed attributes (exactly as before) ----- */
     const pos = opts.position ?? new THREE.Vector3();
@@ -227,7 +219,7 @@ class ParticleContainer extends THREE.Object3D {
     const life = opts.lifetime ?? 5;
 
     if (this.DPR) size *= this.DPR;
-    const startT = this.time + this.particleSystem.random() * 0.05;
+    const startT = timeSeconds;
 
     arrF32[base + 0] = pos.x; // positionStart
     arrF32[base + 1] = pos.y;
@@ -254,16 +246,10 @@ class ParticleContainer extends THREE.Object3D {
     this.FREE_CURSOR = (i + 1) % this.PARTICLE_COUNT;
   }
 
-  /* ---------------------------------------------------------------------- */
-  /*  Frame update                                                          */
-  /* ---------------------------------------------------------------------- */
   /* ------------------------------------------------------------------ */
   /*  Frame update                                                      */
   /* ------------------------------------------------------------------ */
-  update(time) {
-    this.time = time;
-    this.FRAME_ADVANCE = 0;
-
+  update(timeSeconds) {
     const STRIDE = 7;
     const arrF32 = this.attrPositionStart.data.array;
     let i = this.FREE_CURSOR;
@@ -274,10 +260,9 @@ class ParticleContainer extends THREE.Object3D {
       const life = arrF32[base + 4]; // lifeTime
       const endT = arrF32[base + 5] + life; // startTime + lifeTime
 
-      if (life === 0 || time >= endT) break; // free!
+      if (life === 0 || timeSeconds >= endT) break; // free!
       i = (i + 1) % this.PARTICLE_COUNT;
       if (i === this.FREE_CURSOR) break; // entire ring still alive
-      ++this.FRAME_ADVANCE;
     }
 
     this.FREE_CURSOR = i;

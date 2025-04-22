@@ -7,13 +7,11 @@ import MeshTracer from "./meshTracer";
  * Call `attachToScene(scene)` once, then `update(dtMs)` every frame.
  *
  * `DisplayCanvas` (or any host) is free to set:
- *   tracerMgr.runUserProgram = (elapsedMs) => { ... }
  */
 export default class TracerManager {
   constructor() {
     this.enableMesh = false;
     this.enableLaser = true;
-    this.timeScale = 1;
 
     this.init();
   }
@@ -33,7 +31,10 @@ export default class TracerManager {
 
     /* --- clock --- */
     this.totalTime = 0;
-    this.timeScale = this.timeScale;
+  }
+
+  getTracer(type) {
+    return this.tracers[type + "Tracer"];
   }
 
   /* -------------------------------------------------------------- */
@@ -53,17 +54,8 @@ export default class TracerManager {
    * Advance internal clock and step every enabled tracer.
    * @param {number} deltaMs – wall‑clock milliseconds since last call
    */
-  update(deltaMs) {
-    const scaled = deltaMs * this.timeScale;
-    this.totalTime += scaled;
-
-    /* optional external callback (injected by DisplayCanvas ⇢ TracerVM) */
-    if (typeof this.runUserProgram === "function") {
-      this.runUserProgram(this.totalTime);
-    }
-
-    /* propagate time to tracer objects */
-    this._forEachEnabled((t) => t.update(this.totalTime));
+  update(timeSeconds) {
+    this._forEachEnabled((t) => t.update(timeSeconds));
   }
 
   /* -------------------------------------------------------------- */
@@ -76,13 +68,18 @@ export default class TracerManager {
   }
 
   /** Clean up GPU / memory resources. */
-  dispose() {
+  dispose(scene) {
+    Object.values(this.tracers).forEach((t) => {
+      scene.remove(t.getSceneGraphNode());
+      t.dispose?.();
+    });
     Object.values(this.tracers).forEach((t) => t.dispose?.());
   }
 
-  reset() {
-    this.dispose();
+  reset(scene) {
+    this.dispose(scene);
     this.init();
+    this.attachToScene(scene);
   }
 
   /* private */

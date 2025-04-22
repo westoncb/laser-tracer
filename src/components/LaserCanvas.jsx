@@ -28,8 +28,9 @@ export default function LaserCanvas({
   const tracerMgrRef = useRef(null);
   const rafIdRef = useRef(null);
 
-  const cameraRef = useRef(null); // ★ NEW
-  const controlsRef = useRef(null); // ★ NEW
+  const cameraRef = useRef(null);
+  const controlsRef = useRef(null);
+  const sceneRef = useRef(null);
 
   const lastTimeRef = useRef(performance.now());
   const hasErrorRef = useRef(false); // track compile‑broken state
@@ -47,19 +48,21 @@ export default function LaserCanvas({
 
     /* --- Three.js scene / camera / renderer ---------------------- */
     const scene = new THREE.Scene();
+    sceneRef.current = scene;
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     camera.position.set(0, 0, 150);
-    cameraRef.current = camera; // ★ NEW
+    cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.debug.checkShaderErrors = true;
     mount.appendChild(renderer.domElement);
 
     /* --- OrbitControls ------------------------------------------ */
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.12;
-    controlsRef.current = controls; // ★ NEW
+    controlsRef.current = controls;
 
     /* --- Tracer manager + scene graph --------------------------- */
     const tracerMgr = new TracerManager();
@@ -67,11 +70,10 @@ export default function LaserCanvas({
     tracerMgrRef.current = tracerMgr;
 
     /* --- QuickJS VM --------------------------------------------- */
-    const vm = new TracerVM(handleCompileErr, tracerMgr.tracers.laserTracer);
+    const vm = new TracerVM(handleCompileErr);
     vmRef.current = vm;
 
     vm.init().then(() => {
-      tracerMgr.runUserProgram = (elapsed) => vm.tick(elapsed);
       vm.loadSource(srcCode);
     });
 
@@ -86,12 +88,16 @@ export default function LaserCanvas({
     resize();
     window.addEventListener("resize", resize);
 
+    let elapsedTime = 0;
+
     /* --- RAF loop ----------------------------------------------- */
     const animate = (now) => {
       if (!hasErrorRef.current) {
-        const delta = now - lastTimeRef.current;
+        const deltaSeconds = (now - lastTimeRef.current) * 0.001;
         lastTimeRef.current = now;
-        tracerMgr.update(delta); // vm.tick happens inside
+        elapsedTime += deltaSeconds;
+        tracerMgr.update(elapsedTime);
+        vm.tick(elapsedTime, tracerMgr.getTracer("laser"));
       }
       controls.update();
       renderer.render(scene, camera);
@@ -104,7 +110,7 @@ export default function LaserCanvas({
       cancelAnimationFrame(rafIdRef.current);
       window.removeEventListener("resize", resize);
 
-      tracerMgr.dispose();
+      tracerMgr.dispose(scene);
       vm.dispose();
       controls.dispose?.();
       renderer.dispose();
@@ -120,7 +126,7 @@ export default function LaserCanvas({
 
   /* ---------- program switch: reset state ------------------------ */
   useEffect(() => {
-    tracerMgrRef.current?.reset();
+    tracerMgrRef.current?.reset(sceneRef.current);
 
     /* --- also reset camera & controls --------------------------- */
     const cam = cameraRef.current; // ★ NEW

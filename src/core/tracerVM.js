@@ -37,9 +37,8 @@ export default class TracerVM {
   /**
    * @param {(errString|null)=>void} onError – banner setter
    */
-  constructor(onError, laserTracer) {
+  constructor(onError) {
     this.onError = onError;
-    this.laserTracer = laserTracer;
 
     /* async‑initialisation bookkeeping */
     this._ready = false;
@@ -90,8 +89,11 @@ export default class TracerVM {
   }
 
   /* ---------- run one frame and push ops to laserTracer ----------- */
-  tick(timeMs) {
+  tick(timeSeconds, tracer) {
     if (this.hasError || !this._ready || !this.programHandle) return;
+
+    // TODO pass in seconds to user programs but gotta update all examples
+    const timeMs = timeSeconds * 1000;
 
     /* program(timeMs) */
     const t = this.ctx.newNumber(timeMs);
@@ -111,7 +113,7 @@ export default class TracerVM {
 
     /* Pull opcodes and replay */
     const ops = flushOps();
-    if (ops.length) replayOps(this.laserTracer, ops);
+    if (ops.length) replayOps(tracer, ops);
   }
 
   /* ---------- enter error state (compile OR runtime) -------------- */
