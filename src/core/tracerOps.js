@@ -9,6 +9,10 @@ export const HANDLERS = {
   TRACE: (t, [x, y, z]) => t.trace?.(v3(x, y, z)),
   TRACE_REL: (t, [x, y, z]) => t.traceRel?.(v3(x, y, z)),
   DEPOSIT: (t, [x, y, z]) => t.deposit?.(v3(x, y, z)),
+  DEPOSIT_REL: (t, [x, y, z]) => t.depositRel?.(v3(x, y, z)),
+  DRAW_TEXT: (t, [text, x, y, z, h = 4]) => t.drawText?.(text, x, y, z, h),
+  DRAW_TEXT_REL: (t, [text, dx, dy, dz, h = 4]) =>
+    t.drawTextRel?.(text, dx, dy, dz, h),
   COLOR: (t, [c]) => t.color?.(c),
   SIZE: (t, [s]) => t.size?.(s),
   SPACING: (t, [d]) => t.spacing?.(d),

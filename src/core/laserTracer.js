@@ -1,141 +1,104 @@
-// LaserTracer.js – unified target for tracerOps.replayOps()
-// ---------------------------------------------------------
-// ‑ maintains tracer position/orientation, brush state, particle spawning
-// ‑ expose *only* verbs that appear in HANDLERS (tracerOps.js)
-//
-// 2025‑04‑18
-
+/* eslint‑disable max-classes-per-file */
 import * as THREE from "three";
 import ParticleSystem from "./particleSystem.js";
+import { gauss, deg2rad } from "../util/util.js";
+import { GLYPH_MAP } from "../util/glyphMap.js";
 
-/* ---------- fast N(0,1) RNG (Marsaglia polar, cached) ---------------- */
-const gauss = (() => {
-  let spare = null;
-  return () => {
-    if (spare !== null) {
-      const g = spare;
-      spare = null;
-      return g;
-    }
-    let u, v, s;
-    do {
-      u = Math.random() * 2 - 1;
-      v = Math.random() * 2 - 1;
-      s = u * u + v * v;
-    } while (!s || s >= 1);
-    const m = Math.sqrt((-2 * Math.log(s)) / s);
-    spare = v * m;
-    return u * m;
-  };
-})();
+/*───────────────────────────────────────────────────────────*/
+/* Scratch singletons – strictly local to this file         */
+/*───────────────────────────────────────────────────────────*/
+const _v1 = new THREE.Vector3(); // tempo: build destinations
+const _v2 = new THREE.Vector3(); // tempo: directions, misc math
+const _q = new THREE.Quaternion();
+const _AXIS_X = new THREE.Vector3(1, 0, 0);
+const _AXIS_Y = new THREE.Vector3(0, 1, 0);
+const _AXIS_Z = new THREE.Vector3(0, 0, 1);
 
-/* ---------- helper --------------------------------------------------- */
-const deg2rad = (d) => (d * Math.PI) / 180;
-
-/* ===================================================================== */
+/*=====================================================================*/
 class LaserTracer {
-  /* ------------------------------------------------------------------ */
   constructor({ maxParticles = 500_000 } = {}) {
-    /* brush state ----------------------------------------------------- */
+    /* ── brush state ──────────────────────────────────────────────── */
     this.options = {
+      // NB: colour is a THREE.Color instance to avoid hidden allocs
+      color: new THREE.Color(0xaa88ff),
+      size: 5,
+      lifetime: 1,
       position: new THREE.Vector3(),
       velocity: new THREE.Vector3(),
-      color: 0xaa88ff,
-      lifetime: 1,
-      size: 5,
     };
-    this.spawnDistance = 0.03; // spacing()
+
+    /* ── spacing ---------------------------------------------------- */
+    this.spawnDistance = 1;
+    this.invSpawnDistance = 1; // cached reciprocal
+
+    /* ── fuzz brush ------------------------------------------------- */
     this.fuzzBrush = { count: 0, sx: 0, sy: 0, sz: 0 };
+
+    /* ── time cache ------------------------------------------------- */
     this.timeSeconds = 0;
 
-    /* tracer pose ----------------------------------------------------- */
-    this.tracerPos = new THREE.Vector3();
-    this.tracerRot = new THREE.Quaternion();
-
-    /* push/pop stack -------------------------------------------------- */
+    /* ── transform stack ------------------------------------------- */
+    this.frame = {
+      pos: new THREE.Vector3(),
+      rot: new THREE.Quaternion(),
+    };
     this.stack = [];
 
-    /* rendering ------------------------------------------------------- */
+    /* ── rendering -------------------------------------------------- */
     this.particleSystem = new ParticleSystem({ maxParticles });
     this.obj3d = new THREE.Object3D();
     this.obj3d.add(this.particleSystem);
 
-    this.scratch = new THREE.Vector3();
+    /* ── per‑spawn object proto  (mutated in place) ---------------- */
+    this._spawnOpts = {
+      color: this.options.color,
+      lifetime: this.options.lifetime,
+      size: this.options.size,
+      velocity: this.options.velocity,
+      position: new THREE.Vector3(),
+    };
   }
 
-  /* ---------- brush setters ----------------------------------------- */
+  /*──────────────────── Brush helpers ───────────────────*/
+  /** fluent brush setter: tracer.brush({color,size,lifetime}) */
+  brush({ color, size, lifetime } = {}) {
+    if (color !== undefined) this.options.color.set(color);
+    if (size !== undefined) this.options.size = size;
+    if (lifetime !== undefined) this.options.lifetime = lifetime;
+    return this;
+  }
+
   color(c) {
-    this.options.color = c;
+    this.options.color.set(c);
   }
   size(px) {
     this.options.size = px;
   }
-  spacing(d) {
-    this.spawnDistance = d;
-  }
   residue(s) {
     this.options.lifetime = s;
+  }
+
+  spacing(d) {
+    this.spawnDistance = d;
+    this.invSpawnDistance = 1 / d;
   }
   fuzz(count = 0, sx = 4, sy = sx, sz = sx) {
     this.fuzzBrush = { count, sx, sy, sz };
   }
 
-  /* ---------- movement helpers -------------------------------------- */
-  move(worldPos) {
-    this.options.position.copy(worldPos);
-    this.tracerPos.copy(worldPos);
-  }
-
-  trace(worldDest) {
-    // spawn particles along line
-    const dir = worldDest.clone().sub(this.tracerPos);
-    const dist = dir.length();
-    if (!dist) return;
-    dir.normalize();
-    const steps = dist / this.spawnDistance;
-    for (let i = 0; i < steps; i++) {
-      this.tracerPos.addScaledVector(dir, this.spawnDistance);
-      this._spawnWithFuzz(this.tracerPos);
-    }
-    this.tracerPos.copy(worldDest);
-  }
-
-  moveRel(localVec) {
-    const world = localVec
-      .clone()
-      .applyQuaternion(this.tracerRot)
-      .add(this.tracerPos);
-    this.move(world);
-  }
-  traceRel(localVec) {
-    const world = localVec
-      .clone()
-      .applyQuaternion(this.tracerRot)
-      .add(this.tracerPos);
-    this.trace(world);
-  }
-
-  /* ---------- tracer orientation ------------------------------------ */
-  yaw(deg) {
-    this._rotateAroundAxis(new THREE.Vector3(0, 1, 0), deg);
-  }
-  pitch(deg) {
-    this._rotateAroundAxis(new THREE.Vector3(1, 0, 0), deg);
-  }
-  roll(deg) {
-    this._rotateAroundAxis(new THREE.Vector3(0, 0, 1), deg);
-  }
-  _rotateAroundAxis(axis, deg) {
-    const q = new THREE.Quaternion().setFromAxisAngle(axis, deg2rad(deg));
-    this.tracerRot.multiply(q);
-  }
-
-  /* ---------- stack -------------------------------------------------- */
+  /*──────────────────── Transform stack ────────────────*/
   push() {
     this.stack.push({
-      pos: this.tracerPos.clone(),
-      rot: this.tracerRot.clone(),
-      opts: { ...this.options },
+      pos: this.frame.pos.clone(),
+      rot: this.frame.rot.clone(),
+      // snapshot of brush params (vectors need a copy)
+      opts: {
+        color: this.options.color.clone(),
+        lifetime: this.options.lifetime,
+        size: this.options.size,
+        position: this.options.position.clone(),
+        velocity: this.options.velocity.clone(),
+      },
       fuzz: { ...this.fuzzBrush },
       space: this.spawnDistance,
     });
@@ -143,46 +106,200 @@ class LaserTracer {
   pop() {
     const s = this.stack.pop();
     if (!s) return;
-    this.tracerPos.copy(s.pos);
-    this.tracerRot.copy(s.rot);
-    this.options = { ...this.options, ...s.opts };
+
+    /* restore transform */
+    this.frame.pos.copy(s.pos);
+    this.frame.rot.copy(s.rot);
+
+    /* restore brush state */
+    const o = this.options,
+      t = s.opts;
+    o.color.copy(t.color);
+    o.lifetime = t.lifetime;
+    o.size = t.size;
+    o.position.copy(t.position);
+    o.velocity.copy(t.velocity);
+
     this.fuzzBrush = { ...s.fuzz };
     this.spawnDistance = s.space;
-    this.options.position.copy(this.tracerPos); // teleport
   }
 
-  /* ---------- internal particle helper ------------------------------ */
-  _spawnWithFuzz(basePos) {
-    const ps = this.particleSystem;
-    const { position } = this.options;
-    const { count, sx, sy, sz } = this.fuzzBrush;
+  /*──────────────────── Absolute drawing ───────────────*/
+  move(worldPos) {
+    this.frame.pos.copy(worldPos);
+    this.options.position.copy(worldPos);
+  }
+  trace(worldDest) {
+    const dir = _v2.copy(worldDest).sub(this.frame.pos);
+    const dist = dir.length();
+    if (!dist) return; // zero‑length = pen‑up no‑op
 
-    position.copy(basePos);
-    ps.spawnParticle(this.timeSeconds, this.options);
+    dir.normalize();
+    const steps = Math.floor(dist * this.invSpawnDistance);
 
-    for (let i = 0; i < count; i++) {
-      //jitter
-      this.scratch.set(gauss() * sx, gauss() * sy, gauss() * sz);
-      position.addVectors(basePos, this.scratch);
-      ps.spawnParticle(this.timeSeconds, this.options);
+    for (let i = 0; i < steps; i++) {
+      this.frame.pos.addScaledVector(dir, this.spawnDistance);
+      this._spawnWithFuzz(this.frame.pos);
+    }
+    /* ensure end‑cap particle even when dist < spacing */
+    if (steps <= 0) {
+      this._spawnWithFuzz(worldDest);
+    }
+    this.frame.pos.copy(worldDest);
+  }
+  deposit(worldPos) {
+    this._spawnWithFuzz(worldPos);
+    this.frame.pos.copy(worldPos);
+  }
+
+  /*──────────────────── Relative drawing ───────────────*/
+  moveRel(v) {
+    const dest = _v1
+      .copy(v)
+      .applyQuaternion(this.frame.rot)
+      .add(this.frame.pos)
+      .clone();
+    this.move(dest);
+  }
+  traceRel(v) {
+    const dest = _v1
+      .copy(v)
+      .applyQuaternion(this.frame.rot)
+      .add(this.frame.pos)
+      .clone();
+    this.trace(dest);
+  }
+  depositRel(v) {
+    const dest = _v1
+      .copy(v)
+      .applyQuaternion(this.frame.rot)
+      .add(this.frame.pos)
+      .clone();
+    this.deposit(dest);
+  }
+
+  /*──────────────────── Orientation ────────────────────*/
+  _rotate(axis, deg) {
+    _q.setFromAxisAngle(axis, deg2rad(deg));
+    this.frame.rot.multiply(_q);
+  }
+  yaw(d) {
+    this._rotate(_AXIS_Y, d);
+  }
+  pitch(d) {
+    this._rotate(_AXIS_X, d);
+  }
+  roll(d) {
+    this._rotate(_AXIS_Z, d);
+  }
+
+  /*──────────────────── Text helpers ───────────────────*/
+  drawText(txt, x = 0, y = 0, z = 0, h = 4) {
+    this.push();
+    this.move(new THREE.Vector3(x, y, z));
+    this._drawTextInternal(txt, h);
+    this.pop();
+  }
+
+  drawTextRel(txt, dx = 0, dy = 0, dz = 0, h = 4) {
+    this.push();
+    this.moveRel(new THREE.Vector3(dx, dy, dz));
+    this._drawTextInternal(txt, h);
+    this.pop();
+  }
+
+  _drawTextInternal(txt, h = 4) {
+    const sp = h * 1.35;
+
+    txt = String(txt).toUpperCase();
+
+    /* ── optional centring ── */
+    const width = txt.length * sp;
+    _v1.set(-width * 0.5, 0, 0);
+    this.moveRel(_v1);
+
+    for (const ch of txt) {
+      const glyph = GLYPH_MAP[ch];
+      if (!glyph) {
+        // unknown ⇒ blank advance
+        _v1.set(sp, 0, 0);
+        this.moveRel(_v1);
+        continue;
+      }
+
+      this.push(); // glyph‑local frame
+      let penX = 0,
+        penY = 0; // pen in glyph space
+
+      for (const stroke of glyph) {
+        if (!stroke.length) continue;
+
+        /* pen‑up move to first point of stroke */
+        const [x0, y0] = stroke[0];
+        _v1.set((x0 - penX) * h, (y0 - penY) * h, 0);
+        this.moveRel(_v1);
+        penX = x0;
+        penY = y0;
+
+        /* pen‑down draw the rest */
+        for (let i = 1; i < stroke.length; i++) {
+          const [x, y] = stroke[i];
+          _v1.set((x - penX) * h, (y - penY) * h, 0);
+          this.traceRel(_v1);
+          penX = x;
+          penY = y;
+        }
+      }
+
+      /* advance cursor inside glyph frame, then restore parent */
+      this.pop(); // leave glyph frame first
+      _v1.set(sp, 0, 0); // advance in parent frame
+      this.moveRel(_v1);
     }
   }
 
-  /** Drop one (or fuzz‑spray many) particle at an absolute position */
-  deposit(worldPos) {
-    this._spawnWithFuzz(worldPos);
-    // keep tracer in sync so subsequent MOVE_REL/TRACE_REL are intuitive
-    this.tracerPos.copy(worldPos);
+  /*──────────────────── Particle helper ────────────────*/
+  _spawnWithFuzz(base) {
+    const { count, sx, sy, sz } = this.fuzzBrush;
+    const ps = this.particleSystem;
+    const opts = this._spawnOpts;
+    const pos = opts.position;
+
+    // sync dynamic fields
+    opts.lifetime = this.options.lifetime;
+    opts.size = this.options.size;
+    opts.velocity = this.options.velocity;
+
+    /* base particle */
+    pos.copy(base);
+    ps.spawnParticle(this.timeSeconds, opts);
+
+    /* fuzzed copies */
+    for (let i = 0; i < count; i++) {
+      pos.set(
+        base.x + gauss() * sx,
+        base.y + gauss() * sy,
+        base.z + gauss() * sz,
+      );
+      ps.spawnParticle(this.timeSeconds, opts);
+    }
   }
 
-  /** advance particle sim */
-  update(timeSeconds) {
-    this.timeSeconds = timeSeconds;
-    this.particleSystem.update(timeSeconds);
+  /*──────────────────── Tick / cleanup ────────────────*/
+  update(t) {
+    this.timeSeconds = t;
+    this.particleSystem.update(t);
   }
 
+  /*────────────── Helpers for outside code ─────────────*/
   getSceneGraphNode() {
     return this.obj3d;
+  }
+  get position() {
+    return this.frame.pos;
+  }
+  get rotation() {
+    return this.frame.rot;
   }
 
   dispose() {

@@ -64,13 +64,17 @@ export function bindEmit(ctx) {
  * compileSource().  Keeping it here centralises the canonical helper list.
  */
 export const PRELUDE = `
- // === Laser‑tracer turtle primitives (auto‑generated) ===
+ // === Laser‑tracer primitives ===
  // These live *inside* the QuickJS VM and call the host‑side emit().
  const move     = (x,y,z)      => emit('MOVE',     x,y,z);
  const trace    = (x,y,z)      => emit('TRACE',    x,y,z);
  const deposit  = (x,y,z)      => emit('DEPOSIT',  x,y,z);
+ const drawText = (t,x,y,z,h)   => emit('DRAW_TEXT',t,x,y,z,h);
  const moveRel  = (dx,dy,dz)   => emit('MOVE_REL', dx,dy,dz);
  const traceRel = (dx,dy,dz)   => emit('TRACE_REL',dx,dy,dz);
+ const depositRel = (dx,dy,dz) => emit('DEPOSIT_REL',dx,dy,dz);
+ const drawTextRel = (t,dx,dy,dz,h)   => emit('DRAW_TEXT_REL',t,dx,dy,dz,h);
+
 
  const yaw     = (d)          => emit('YAW',     d);
  const pitch    = (d)          => emit('PITCH',    d);
