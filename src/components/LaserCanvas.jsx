@@ -1,12 +1,10 @@
-// LaserCanvas.jsx  –  Three.js + Tracer glue with compile‑error back‑pressure fix
-// -----------------------------------------------------------------------------
-
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import TracerManager from "../core/tracerManager.js";
 import TracerVM from "../core/tracerVM.js";
+import tracerLib from "../core/tracerLib.js";
 
 /**
  * Props
@@ -97,7 +95,7 @@ export default function LaserCanvas({
         lastTimeRef.current = now;
         elapsedTime += deltaSeconds;
         tracerMgr.update(elapsedTime);
-        vm.tick(elapsedTime, tracerMgr.getTracer("laser"));
+        vm.tick(elapsedTime, tracerMgr.getTracer("laser"), tracerLib);
       }
       controls.update();
       renderer.render(scene, camera);

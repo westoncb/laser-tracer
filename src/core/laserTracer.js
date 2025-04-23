@@ -1,4 +1,3 @@
-/* eslint‑disable max-classes-per-file */
 import * as THREE from "three";
 import ParticleSystem from "./particleSystem.js";
 import { gauss, deg2rad } from "../util/util.js";
@@ -9,6 +8,7 @@ import { GLYPH_MAP } from "../util/glyphMap.js";
 /*───────────────────────────────────────────────────────────*/
 const _v1 = new THREE.Vector3(); // tempo: build destinations
 const _v2 = new THREE.Vector3(); // tempo: directions, misc math
+const _vIn = new THREE.Vector3(); // tempo: direction function input conversion
 const _q = new THREE.Quaternion();
 const _AXIS_X = new THREE.Vector3(1, 0, 0);
 const _AXIS_Y = new THREE.Vector3(0, 1, 0);
@@ -19,7 +19,7 @@ class LaserTracer {
   constructor({ maxParticles = 500_000 } = {}) {
     /* ── brush state ──────────────────────────────────────────────── */
     this.options = {
-      // NB: colour is a THREE.Color instance to avoid hidden allocs
+      // NB: color is a THREE.Color instance to avoid hidden allocs
       color: new THREE.Color(0xaa88ff),
       size: 5,
       lifetime: 1,
@@ -79,6 +79,7 @@ class LaserTracer {
   }
 
   spacing(d) {
+    if (!(d > 0 && Number.isFinite(d))) return;
     this.spawnDistance = d;
     this.invSpawnDistance = 1 / d;
   }
@@ -125,17 +126,22 @@ class LaserTracer {
   }
 
   /*──────────────────── Absolute drawing ───────────────*/
-  move(worldPos) {
-    this.frame.pos.copy(worldPos);
-    this.options.position.copy(worldPos);
+  move(x, y, z) {
+    _vIn.set(x, y, z);
+    this.frame.pos.copy(_vIn);
+    this.options.position.copy(_vIn);
   }
-  trace(worldDest) {
-    const dir = _v2.copy(worldDest).sub(this.frame.pos);
+  trace(xDest, yDest, zDest) {
+    _vIn.set(xDest, yDest, zDest);
+    const dir = _v2.copy(_vIn).sub(this.frame.pos);
     const dist = dir.length();
     if (!dist) return; // zero‑length = pen‑up no‑op
 
     dir.normalize();
-    const steps = Math.floor(dist * this.invSpawnDistance);
+    const steps = Math.min(
+      10_000, // hard ceiling — adjust to taste
+      Math.floor(dist * this.invSpawnDistance),
+    );
 
     for (let i = 0; i < steps; i++) {
       this.frame.pos.addScaledVector(dir, this.spawnDistance);
@@ -143,39 +149,40 @@ class LaserTracer {
     }
     /* ensure end‑cap particle even when dist < spacing */
     if (steps <= 0) {
-      this._spawnWithFuzz(worldDest);
+      this._spawnWithFuzz(_vIn);
     }
-    this.frame.pos.copy(worldDest);
+    this.frame.pos.copy(_vIn);
   }
-  deposit(worldPos) {
-    this._spawnWithFuzz(worldPos);
-    this.frame.pos.copy(worldPos);
+  deposit(x, y, z) {
+    _vIn.set(x, y, z);
+    this._spawnWithFuzz(_vIn);
+    this.frame.pos.copy(_vIn);
   }
 
   /*──────────────────── Relative drawing ───────────────*/
-  moveRel(v) {
+  moveRel(x, y, z) {
     const dest = _v1
-      .copy(v)
+      .set(x, y, z)
       .applyQuaternion(this.frame.rot)
       .add(this.frame.pos)
       .clone();
-    this.move(dest);
+    this.move(dest.x, dest.y, dest.z);
   }
-  traceRel(v) {
+  traceRel(x, y, z) {
     const dest = _v1
-      .copy(v)
+      .set(x, y, z)
       .applyQuaternion(this.frame.rot)
       .add(this.frame.pos)
       .clone();
-    this.trace(dest);
+    this.trace(dest.x, dest.y, dest.z);
   }
-  depositRel(v) {
+  depositRel(x, y, z) {
     const dest = _v1
-      .copy(v)
+      .set(x, y, z)
       .applyQuaternion(this.frame.rot)
       .add(this.frame.pos)
       .clone();
-    this.deposit(dest);
+    this.deposit(dest.x, dest.y, dest.z);
   }
 
   /*──────────────────── Orientation ────────────────────*/
@@ -196,14 +203,14 @@ class LaserTracer {
   /*──────────────────── Text helpers ───────────────────*/
   drawText(txt, x = 0, y = 0, z = 0, h = 4) {
     this.push();
-    this.move(new THREE.Vector3(x, y, z));
+    this.move(x, y, z);
     this._drawTextInternal(txt, h);
     this.pop();
   }
 
   drawTextRel(txt, dx = 0, dy = 0, dz = 0, h = 4) {
     this.push();
-    this.moveRel(new THREE.Vector3(dx, dy, dz));
+    this.moveRel(dx, dy, dz);
     this._drawTextInternal(txt, h);
     this.pop();
   }
@@ -216,14 +223,14 @@ class LaserTracer {
     /* ── optional centring ── */
     const width = txt.length * sp;
     _v1.set(-width * 0.5, 0, 0);
-    this.moveRel(_v1);
+    this.moveRel(_v1.x, _v1.y, _v1.z);
 
     for (const ch of txt) {
       const glyph = GLYPH_MAP[ch];
       if (!glyph) {
         // unknown ⇒ blank advance
         _v1.set(sp, 0, 0);
-        this.moveRel(_v1);
+        this.moveRel(_v1.x, _v1.y, _v1.z);
         continue;
       }
 
@@ -237,7 +244,7 @@ class LaserTracer {
         /* pen‑up move to first point of stroke */
         const [x0, y0] = stroke[0];
         _v1.set((x0 - penX) * h, (y0 - penY) * h, 0);
-        this.moveRel(_v1);
+        this.moveRel(_v1.x, _v1.y, _v1.z);
         penX = x0;
         penY = y0;
 
@@ -245,7 +252,7 @@ class LaserTracer {
         for (let i = 1; i < stroke.length; i++) {
           const [x, y] = stroke[i];
           _v1.set((x - penX) * h, (y - penY) * h, 0);
-          this.traceRel(_v1);
+          this.traceRel(_v1.x, _v1.y, _v1.z);
           penX = x;
           penY = y;
         }
@@ -254,7 +261,7 @@ class LaserTracer {
       /* advance cursor inside glyph frame, then restore parent */
       this.pop(); // leave glyph frame first
       _v1.set(sp, 0, 0); // advance in parent frame
-      this.moveRel(_v1);
+      this.moveRel(_v1.x, _v1.y, _v1.z);
     }
   }
 

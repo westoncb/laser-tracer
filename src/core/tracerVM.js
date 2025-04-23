@@ -1,23 +1,65 @@
-// TracerVM.js – owns QuickJS, compilation, opcode replay
-// ==============================================================
-
-import { bindEmit, flushOps, buildProgramWrapper } from "./tracerAPI.js";
-import { replayOps } from "./tracerOps.js";
-
 import variant from "@jitl/quickjs-singlefile-browser-release-sync";
 import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
 
 /* ------------------------------------------------------------------ */
-/* Helpers                                                             */
+/* 1.  PRELUDE  (lives INSIDE QuickJS VM)                              */
 /* ------------------------------------------------------------------ */
+const PRELUDE_VERSION = 1;
 
-/**
- * Build a readable string from a QuickJS error handle.
- */
+const PRELUDE = String.raw`
+// ==== Laser-Tracer PRELUDE (v${PRELUDE_VERSION}) ====================
+globalThis.__ops = [];
+globalThis.emit  = (...tuple) => __ops.push(tuple);
+globalThis.__flushOps = () => { const o = __ops; __ops = []; return o; };
+
+/* ---- tracer-side helpers ---------------------------------------- */
+const move       = (x,y,z)        => emit('move',       x,y,z);
+const moveRel    = (dx,dy,dz)     => emit('moveRel',    dx,dy,dz);
+const trace      = (x,y,z)        => emit('trace',      x,y,z);
+const traceRel   = (dx,dy,dz)     => emit('traceRel',   dx,dy,dz);
+const deposit    = (x,y,z)        => emit('deposit',    x,y,z);
+const depositRel = (dx,dy,dz)     => emit('depositRel', dx,dy,dz);
+const drawText   = (t,x,y,z,h=4)  => emit('drawText',   t,x,y,z,h);
+const drawTextRel= (t,dx,dy,dz,h=4)=>emit('drawTextRel',t,dx,dy,dz,h);
+
+const yaw   = d => emit('yaw',   d);
+const pitch = d => emit('pitch', d);
+const roll  = d => emit('roll',  d);
+const push  = () => emit('push');
+const pop   = () => emit('pop');
+
+const size    = px => emit('size',    px);
+const spacing = d  => emit('spacing', d);
+const residue = s  => emit('residue', s);
+const fuzz    = (n=0,sx=4,sy=sx,sz=sx)=>emit('fuzz', n|0,+sx,+sy,+sz);
+
+/* ---- lib-side helpers  (handled in host-side lib) -------------- */
+const colorRGB      = (r,g,b)                 => emit('colorRGB', r,g,b);
+const colorHSV      = (h,s,v)                 => emit('colorHSV', h,s,v);
+const colorViridis  = t                       => emit('colorViridis', t);
+const colorCubehelix= (t,st=.5,rot=-1.5,g=1)  => emit('colorCubehelix', t,st,rot,g);
+const colorHex      = hex                     => emit('colorHex', hex>>>0);
+const color         = colorHex; // back-compat
+`;
+
+/* ------------------------------------------------------------------ */
+/* 2.  buildProgramWrapper                                            */
+/* ------------------------------------------------------------------ */
+function buildProgramWrapper(userSource) {
+  return `
+// --- wrapped by TracerVM -------------------------------------------
+${PRELUDE}
+${userSource}
+return program;  // ← expose to host
+`;
+}
+
+/* ------------------------------------------------------------------ */
+/* 3.  Utility: stringify QuickJS errors                               */
+/* ------------------------------------------------------------------ */
 function stringifyQJSError(ctx, errHandle) {
   const dumped = ctx.dump(errHandle);
   if (typeof dumped === "string") return dumped;
-
   if (dumped && typeof dumped === "object") {
     const { name = "Error", message = "", stack = "" } = dumped;
     return `${name}: ${message}${stack ? "\n" + stack : ""}`;
@@ -30,102 +72,121 @@ function stringifyQJSError(ctx, errHandle) {
 }
 
 /* ------------------------------------------------------------------ */
-/* VM class                                                            */
+/* 4.  TracerVM class                                                  */
 /* ------------------------------------------------------------------ */
-
 export default class TracerVM {
   /**
-   * @param {(errString|null)=>void} onError – banner setter
+   * @param {(errString|null)=>void} onError
    */
   constructor(onError) {
     this.onError = onError;
 
-    /* async‑initialisation bookkeeping */
     this._ready = false;
     this._queuedSrc = null;
-
-    // ★ NEW – track if we’re currently in an error state
     this.hasError = false;
+    this.programHandle = null;
   }
 
-  /* ---------- QuickJS spin‑up ------------------------------------- */
+  /* ---- Initialise QuickJS --------------------------------------- */
   async init() {
     const QuickJS = await newQuickJSWASMModuleFromVariant(variant);
     this.ctx = QuickJS.newContext();
-    bindEmit(this.ctx);
-
     this._ready = true;
 
     if (this._queuedSrc !== null) {
-      const src = this._queuedSrc;
+      const s = this._queuedSrc;
       this._queuedSrc = null;
-      this.loadSource(src);
+      this.loadSource(s);
     }
   }
 
-  /* ---------- compile / recompile user source --------------------- */
+  /* ---- Compile (or queue until ready) --------------------------- */
   loadSource(src) {
     if (!this._ready) {
       this._queuedSrc = src;
       return;
     }
 
-    const wrapped = buildProgramWrapper(src);
-    const res = this.ctx.evalCode(wrapped);
+    /* Build wrapper: globalThis.program = (function(){ PRELUDE + user })() */
+    const wrapped = `globalThis.program = (function(){${buildProgramWrapper(src)}})();`;
 
+    const res = this.ctx.evalCode(wrapped);
     if (res.error) {
       this._enterError(stringifyQJSError(this.ctx, res.error));
       res.error.dispose();
       return;
     }
 
-    // success  →  reset error state
     this.hasError = false;
     this.onError(null);
 
-    /* Hold handle to globalThis.program */
+    /* hold handle to globalThis.program */
     this.programHandle?.dispose?.();
     this.programHandle = this.ctx.getProp(this.ctx.global, "program");
   }
 
-  /* ---------- run one frame and push ops to laserTracer ----------- */
-  tick(timeSeconds, tracer) {
+  /* ---- One animation frame -------------------------------------- */
+  tick(timeSeconds, tracer, lib = {}) {
     if (this.hasError || !this._ready || !this.programHandle) return;
 
-    // TODO pass in seconds to user programs but gotta update all examples
-    const timeMs = timeSeconds * 1000;
-
-    /* program(timeMs) */
-    const t = this.ctx.newNumber(timeMs);
-    const res = this.ctx.callFunction(
+    /* call program(timeMs) */
+    const tMs = this.ctx.newNumber(timeSeconds * 1000);
+    const r = this.ctx.callFunction(
       this.programHandle,
       this.ctx.undefined,
-      t,
+      tMs,
     );
-    t.dispose();
+    tMs.dispose();
+
+    if (r.error) {
+      this._enterError(stringifyQJSError(this.ctx, r.error));
+      r.error.dispose();
+      return;
+    }
+    r.value?.dispose();
+
+    /* ---- flush ops (one hop) --------------------------------------- */
+    const flushH = this.ctx.getProp(this.ctx.global, "__flushOps");
+    const res = this.ctx.callFunction(flushH, this.ctx.undefined);
+    flushH.dispose();
 
     if (res.error) {
       this._enterError(stringifyQJSError(this.ctx, res.error));
       res.error.dispose();
       return;
     }
-    res.value?.dispose();
 
-    /* Pull opcodes and replay */
-    const ops = flushOps();
-    if (ops.length) replayOps(tracer, ops);
+    const opsHandle = res.value; // <- the actual JS array handle
+    const ops = this.ctx.dump(opsHandle); // now a plain JS array
+    opsHandle.dispose(); // tidy up
+
+    /* ---- dispatch to tracer | lib ------------------------------ */
+    for (const [op, ...args] of ops) {
+      const tf = tracer[op];
+      if (typeof tf === "function") {
+        tf.apply(tracer, args);
+        continue;
+      }
+
+      const lf = lib[op];
+      if (typeof lf === "function") {
+        lf.apply(lib, [tracer, ...args]);
+        continue;
+      }
+
+      console.warn("TracerVM: unknown opcode", op);
+    }
   }
 
-  /* ---------- enter error state (compile OR runtime) -------------- */
+  /* ---- Error helper -------------------------------------------- */
   _enterError(msg) {
-    // ★ NEW helper
     this.hasError = true;
     this.onError(msg);
     this.programHandle?.dispose?.();
     this.programHandle = null;
   }
 
-  /* ---------- tidy‑up --------------------------------------------- */
+  /* ---- Cleanup -------------------------------------------------- */
   dispose() {
     this.programHandle?.dispose?.();
     this.ctx?.dispose();
