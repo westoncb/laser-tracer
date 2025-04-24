@@ -66,7 +66,7 @@ function drawCubeFrame(t) {
     spacing(0.15);
     fuzz(0);
     colorRGB(0.8, 1, 0.8); // Yellow for labels
-    drawTextRel(face.name, 0, 0, 0, 5);
+    // drawTextRel(face.name, 0, 0, 0, 5);
     pop();
 
     pop();
@@ -94,27 +94,8 @@ function drawCubeFrame(t) {
       pop();
     }
   }
-
-  // Draw the edges of the cube with pulsing effect
-
-  // Draw cube edges
-  // drawCubeEdges(cubeSize, pulse);
 }
 
-//----------------------------------------------------------------------
-// Spiral sample function for generating even distribution on unit sphere
-//----------------------------------------------------------------------
-function spiralSample(i, n) {
-  const g = Math.PI * (3 - Math.sqrt(5)); // golden angle
-  const z = 1 - (2 * (i + 0.5)) / n; // z ∈ [‑1, 1]
-  const r = Math.sqrt(1 - z * z); // radius in xy‑plane
-  const theta = g * i;
-  return [r * Math.cos(theta), z, r * Math.sin(theta)];
-}
-
-//----------------------------------------------------------------------
-// Geometry generator for an ellipsoid
-//----------------------------------------------------------------------
 // ----------------------------------------------------------------------
 // generateEllipsoid – now with normal-space roll compensation
 // ----------------------------------------------------------------------
@@ -321,11 +302,11 @@ function drawSolarSystem(t) {
     },
     {
       name: "SATURN",
-      distance: 52,
+      distance: 72,
       size: 9,
       color: neonPalette[3],
       speed: 0.5,
-      rotationSpeed: 6,
+      rotationSpeed: 3,
       moons: 0,
       rings: true,
       stretch: { x: 1, y: 0.9, z: 1 },
@@ -347,9 +328,9 @@ function drawSolarSystem(t) {
     push();
     move(orbitX, orbitY, orbitZ);
 
-    size(5);
+    size(8);
     residue(0.5);
-    fuzz(10, 0.5);
+    fuzz(2, 0.5);
 
     // Draw planet
     drawCelestialBody(
@@ -418,8 +399,8 @@ function drawSun(t) {
   const sunHue = (t * 0.1) % 1.0;
 
   // Generate sun surface geometry
-  size(6);
-  fuzz(10, 1.2);
+  size(10);
+  fuzz(5, 1);
   residue(1);
 
   // Draw main sun surface as emissive object
@@ -430,7 +411,7 @@ function drawSun(t) {
     sunRadius * pulse,
     sunRadius * pulse,
     sunRadius * pulse,
-    400,
+    300,
   );
 
   move(0, 0, 0);
@@ -488,7 +469,7 @@ function drawCelestialBody(
     saturation: 0.5,
     intensity: 1,
     emissive: false,
-    ambient: 0.5,
+    ambient: 0.7,
     lights: lights,
     specular: 0.4,
     shininess: 64,
@@ -539,7 +520,8 @@ function drawRings(planet, t, lights = []) {
 
   const hues = [(planet.color.h + 0.3) % 1, (planet.color.h + 0.9) % 1];
 
-  for (let ringIdx = 0; ringIdx < 2; ringIdx++) {
+  // NOTE: Only draw one ring for now
+  for (let ringIdx = 0; ringIdx < 1; ringIdx++) {
     const ringRadius = planet.size * (1.8 + ringIdx * 0.8);
     const ringWidth = planet.size * 0.2;
     const hue = hues[ringIdx];
