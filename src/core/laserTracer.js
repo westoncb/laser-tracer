@@ -14,9 +14,12 @@ const _AXIS_X = new THREE.Vector3(1, 0, 0);
 const _AXIS_Y = new THREE.Vector3(0, 1, 0);
 const _AXIS_Z = new THREE.Vector3(0, 0, 1);
 
+const SPAWNS_PER_TICK = 42000;
+const MAX_PARTICLES = 500_000;
+
 /*=====================================================================*/
 class LaserTracer {
-  constructor({ maxParticles = 500_000 } = {}) {
+  constructor({ maxParticles = MAX_PARTICLES } = {}) {
     /* ── brush state ──────────────────────────────────────────────── */
     this.options = {
       // NB: color is a THREE.Color instance to avoid hidden allocs
@@ -49,6 +52,13 @@ class LaserTracer {
     this.obj3d = new THREE.Object3D();
     this.obj3d.add(this.particleSystem);
 
+    /* ── tick-budget throttle ------------------------------------ */
+    this._tickBudget = SPAWNS_PER_TICK; // deposits allowed per VM tick
+    this._budgetLeft = this._tickBudget;
+    this._emittedThisFrame = 0;
+    this._strideLen = 1; //  ← updated every tick
+    this._strideOffset = 0; //  ← cycles 0 .. strideLen-1
+
     /* ── per‑spawn object proto  (mutated in place) ---------------- */
     this._spawnOpts = {
       color: this.options.color,
@@ -57,6 +67,25 @@ class LaserTracer {
       velocity: this.options.velocity,
       position: new THREE.Vector3(),
     };
+  }
+
+  /*──────────────── Budget API ───────────────────────────────────*/
+
+  /*  VM calls these once per frame  */
+  _beginTick() {
+    this._budgetLeft = this._tickBudget;
+    this._emittedThisFrame = 0;
+    this._acceptedThisFrame = 0;
+
+    // advance offset cyclically
+    this._strideOffset = (this._strideOffset + 1) % this._strideLen;
+  }
+
+  _endTick() {
+    /* ------- compute stride for NEXT tick ------------------------- */
+    const M = this._emittedThisFrame;
+    const B = this._tickBudget;
+    this._strideLen = Math.max(1, Math.ceil(M / B) || 1);
   }
 
   /*──────────────────── Brush helpers ───────────────────*/
@@ -267,6 +296,14 @@ class LaserTracer {
 
   /*──────────────────── Particle helper ────────────────*/
   _spawnWithFuzz(base) {
+    const idx = this._emittedThisFrame++; // index within this tick
+
+    // accept rule: idx mod strideLen === strideOffset
+    if (idx % this._strideLen !== this._strideOffset) return;
+
+    if (this._budgetLeft-- <= 0) return; // safety (shouldn’t hit)
+    this._acceptedThisFrame++;
+
     const { count, sx, sy, sz } = this.fuzzBrush;
     const ps = this.particleSystem;
     const opts = this._spawnOpts;
