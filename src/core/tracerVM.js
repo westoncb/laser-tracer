@@ -2,15 +2,13 @@ import variant from "@jitl/quickjs-singlefile-browser-release-sync";
 import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
 
 /* ------------------------------------------------------------------ */
-/* 1.  PRELUDE  (lives INSIDE QuickJS VM)                              */
+/* 1.  PRELUDE  (lives inside QuickJS VM)                              */
 /* ------------------------------------------------------------------ */
 const PRELUDE_VERSION = 1;
 
 const PRELUDE = String.raw`
 // ==== Laser-Tracer PRELUDE (v${PRELUDE_VERSION}) ====================
-globalThis.__ops = [];
-globalThis.emit  = (...tuple) => __ops.push(tuple);
-globalThis.__flushOps = () => { const o = __ops; __ops = []; return o; };
+
 
 /* ---- tracer-side helpers ---------------------------------------- */
 const move       = (x,y,z)        => emit('move',       x,y,z);
@@ -40,6 +38,8 @@ const colorViridis  = t                       => emit('colorViridis', t);
 const colorCubehelix= (t,st=.5,rot=-1.5,g=1)  => emit('colorCubehelix', t,st,rot,g);
 const colorHex      = hex                     => emit('colorHex', hex>>>0);
 const color         = colorHex; // back-compat
+
+move(0, 0, 0);
 `;
 
 /* ------------------------------------------------------------------ */
@@ -72,6 +72,26 @@ function stringifyQJSError(ctx, errHandle) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Host-side opcode buffer                                            */
+/* ------------------------------------------------------------------ */
+const _ops = [];
+
+function bindEmit(ctx) {
+  const emitH = ctx.newFunction("emit", (...h) => {
+    try {
+      const op = ctx.dump(h[0]);
+      const args = h.slice(1).map((x) => ctx.dump(x));
+      _ops.push([op, ...args]);
+    } catch (e) {
+      console.error("[emit ERROR]", e);
+    }
+  });
+
+  ctx.setProp(ctx.global, "emit", emitH, /*configurable=*/ false);
+  emitH.dispose();
+}
+
+/* ------------------------------------------------------------------ */
 /* 4.  TracerVM class                                                  */
 /* ------------------------------------------------------------------ */
 export default class TracerVM {
@@ -91,6 +111,8 @@ export default class TracerVM {
   async init() {
     const QuickJS = await newQuickJSWASMModuleFromVariant(variant);
     this.ctx = QuickJS.newContext();
+    bindEmit(this.ctx);
+
     this._ready = true;
 
     if (this._queuedSrc !== null) {
@@ -107,7 +129,6 @@ export default class TracerVM {
       return;
     }
 
-    /* Build wrapper: globalThis.program = (function(){ PRELUDE + user })() */
     const wrapped = `globalThis.program = (function(){${buildProgramWrapper(src)}})();`;
 
     const res = this.ctx.evalCode(wrapped);
@@ -125,11 +146,12 @@ export default class TracerVM {
     this.programHandle = this.ctx.getProp(this.ctx.global, "program");
   }
 
-  /* ---- One animation frame -------------------------------------- */
   tick(timeSeconds, tracer, lib = {}) {
     if (this.hasError || !this._ready || !this.programHandle) return;
 
-    /* call program(timeMs) */
+    tracer._beginTick();
+
+    /* run user program ------------------------------------------------ */
     const tMs = this.ctx.newNumber(timeSeconds * 1000);
     const r = this.ctx.callFunction(
       this.programHandle,
@@ -137,7 +159,6 @@ export default class TracerVM {
       tMs,
     );
     tMs.dispose();
-
     if (r.error) {
       this._enterError(stringifyQJSError(this.ctx, r.error));
       r.error.dispose();
@@ -145,22 +166,10 @@ export default class TracerVM {
     }
     r.value?.dispose();
 
-    /* ---- flush ops (one hop) --------------------------------------- */
-    const flushH = this.ctx.getProp(this.ctx.global, "__flushOps");
-    const res = this.ctx.callFunction(flushH, this.ctx.undefined);
-    flushH.dispose();
+    /* ---- take buffered ops (host-side) ----------------------------- */
+    const ops = _ops.splice(0, _ops.length); // grab & clear in O(1)
 
-    if (res.error) {
-      this._enterError(stringifyQJSError(this.ctx, res.error));
-      res.error.dispose();
-      return;
-    }
-
-    const opsHandle = res.value; // <- the actual JS array handle
-    const ops = this.ctx.dump(opsHandle); // now a plain JS array
-    opsHandle.dispose(); // tidy up
-
-    /* ---- dispatch to tracer | lib ------------------------------ */
+    /* ---- dispatch -------------------------------------------------- */
     for (const [op, ...args] of ops) {
       const tf = tracer[op];
       if (typeof tf === "function") {
@@ -176,6 +185,8 @@ export default class TracerVM {
 
       console.warn("TracerVM: unknown opcode", op);
     }
+
+    tracer._endTick();
   }
 
   /* ---- Error helper -------------------------------------------- */
