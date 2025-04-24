@@ -145,7 +145,7 @@ class ParticleContainer extends THREE.Object3D {
     this.PARTICLE_CURSOR = 0;
     this.count = 0;
     this.offset = 0;
-    this.DPR = window.devicePixelRatio;
+    this.particleScaleFactor = Math.sqrt(window.devicePixelRatio);
     this.particleSystem = particleSystem;
     this._color = new THREE.Color();
 
@@ -218,7 +218,7 @@ class ParticleContainer extends THREE.Object3D {
     let size = opts.size ?? 10;
     const life = opts.lifetime ?? 5;
 
-    // if (this.DPR) size *= this.DPR;
+    if (this.particleScaleFactor) size *= this.particleScaleFactor;
     const startT = timeSeconds;
 
     arrF32[base + 0] = pos.x; // positionStart
