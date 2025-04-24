@@ -6,6 +6,7 @@ function program(timeMs) {
   residue(5);
 
   // Draw cube wireframe with grid lines
+  move(0, 0, 0);
   drawCubeFrame(t);
 
   // Draw solar system inside the cube
@@ -15,10 +16,6 @@ function program(timeMs) {
 //----------------------------------------------------------------------
 // drawCubeFrame – CAD‑style cube grid with major / minor subdivisions
 //----------------------------------------------------------------------
-// • draws outer cube edges every frame with a gentle brightness pulse
-// • constructs a dense face grid (major + minor)
-//----------------------------------------------------------------------
-
 function drawCubeFrame(t) {
   // ---------------- parameters --------------------------------------
   const cubeSize = 40; // half‑extent of cube
@@ -30,114 +27,82 @@ function drawCubeFrame(t) {
 
   residue(3);
 
-  // ----- minor grid (thinner, dimmer) -----
-  size(2);
-  spacing(spacingMin);
-  fuzz(3, 1);
-  colorHSV(0.33, 0.3, 0.25); // muted green
-  buildFaceGrid(majorDiv * minorDiv, false);
-
-  // ----- major grid (heavier, brighter) ---
-  size(4);
-  fuzz(3, 2);
-  spacing(spacingMaj);
-  colorHSV(0.33, 0.35, 0.45); // brighter green
-  buildFaceGrid(majorDiv, true);
-
-  // ---------- 2. outer cube edges (pulse every frame) ---------------
-  residue(6);
-  size(2.2);
-  spacing(0.1);
-  fuzz(0);
-  colorHSV(0.35, 0.6, 0.8 + pulse * 0.2);
-
-  const edges = [
-    // bottom square
-    [-1, -1, -1],
-    [1, -1, -1],
-    [1, -1, -1],
-    [1, -1, 1],
-    [1, -1, 1],
-    [-1, -1, 1],
-    [-1, -1, 1],
-    [-1, -1, -1],
-    // top square
-    [-1, 1, -1],
-    [1, 1, -1],
-    [1, 1, -1],
-    [1, 1, 1],
-    [1, 1, 1],
-    [-1, 1, 1],
-    [-1, 1, 1],
-    [-1, 1, -1],
-    // uprights
-    [-1, -1, -1],
-    [-1, 1, -1],
-    [1, -1, -1],
-    [1, 1, -1],
-    [1, -1, 1],
-    [1, 1, 1],
-    [-1, -1, 1],
-    [-1, 1, 1],
+  // Define cube faces with orientations
+  const faces = [
+    { name: "FRONT", rot: [0, 0, 0] }, // +Z
+    { name: "BACK", rot: [0, 180, 0] }, // -Z
+    { name: "LEFT", rot: [0, -90, 0] }, // -X
+    { name: "RIGHT", rot: [0, 90, 0] }, // +X
+    { name: "TOP", rot: [90, 0, 180] }, // +Y
+    { name: "BOTTOM", rot: [-90, 0, 180] }, // -Y
   ];
 
-  for (let i = 0; i < edges.length; i += 2) {
-    move(
-      edges[i][0] * cubeSize,
-      edges[i][1] * cubeSize,
-      edges[i][2] * cubeSize,
-    );
-    trace(
-      edges[i + 1][0] * cubeSize,
-      edges[i + 1][1] * cubeSize,
-      edges[i + 1][2] * cubeSize,
-    );
+  // Draw each face of the cube
+  for (const face of faces) {
+    push();
+    // Apply face orientation
+    pitch(face.rot[0]);
+    yaw(face.rot[1]);
+    roll(face.rot[2]);
+
+    // Position at the face
+    moveRel(0, 0, -cubeSize);
+
+    // ----- minor grid (thinner, dimmer) -----
+    size(2);
+    spacing(spacingMin);
+    fuzz(3, 1);
+    colorHSV(0.33, 0.3, 0.25); // muted green
+    drawGrid(cubeSize, majorDiv * minorDiv, false, minorDiv);
+
+    // ----- major grid (heavier, brighter) ---
+    size(4);
+    fuzz(3, 2);
+    spacing(spacingMaj);
+    colorHSV(0.33, 0.35, 0.45); // brighter green
+    drawGrid(cubeSize, majorDiv, true);
+
+    // Draw face label
+    push();
+    moveRel(0, 0, -0.5); // Slightly in front of the grid
+    size(4);
+    residue(0.5);
+    spacing(0.15);
+    fuzz(0);
+    colorRGB(0.8, 1, 0.8); // Yellow for labels
+    drawTextRel(face.name, 0, 0, 0, 5);
+    pop();
+
+    pop();
   }
 
-  // -------- helper to build grid lines on six faces -----------------
-  function buildFaceGrid(divisions, drawEveryLine) {
-    const step = 2 / divisions; // maps i→[-1,1]
-    for (let fixed = 0; fixed < 3; fixed++) {
-      // axis held constant on face
-      for (const sign of [-1, 1]) {
-        // -1 & +1 faces
-        const u = (fixed + 1) % 3; // first varying axis
-        const v = (fixed + 2) % 3; // second varying axis
+  // Helper to draw a grid on a face
+  function drawGrid(size, divisions, drawEveryLine, minorStep = 1) {
+    const step = (2 * size) / divisions;
 
-        // lines parallel to u (vary v)
-        for (let i = 0; i <= divisions; i++) {
-          if (!drawEveryLine && i % minorDiv !== 0) continue;
-          const frac = -1 + i * step;
+    // Draw horizontal lines
+    for (let i = 0; i <= divisions; i++) {
+      if (!drawEveryLine && i % minorStep !== 0) continue;
+      const pos = -size + i * step;
 
-          let a = [0, 0, 0],
-            b = [0, 0, 0];
-          a[fixed] = b[fixed] = sign;
-          a[v] = b[v] = frac;
-          a[u] = -1;
-          b[u] = 1;
+      // Horizontal line
+      push();
+      moveRel(-size, pos, 0);
+      traceRel(2 * size, 0, 0);
+      pop();
 
-          move(a[0] * cubeSize, a[1] * cubeSize, a[2] * cubeSize);
-          trace(b[0] * cubeSize, b[1] * cubeSize, b[2] * cubeSize);
-        }
-
-        // lines parallel to v (vary u)
-        for (let i = 0; i <= divisions; i++) {
-          if (!drawEveryLine && i % minorDiv !== 0) continue;
-          const frac = -1 + i * step;
-
-          let a = [0, 0, 0],
-            b = [0, 0, 0];
-          a[fixed] = b[fixed] = sign;
-          a[u] = b[u] = frac;
-          a[v] = -1;
-          b[v] = 1;
-
-          move(a[0] * cubeSize, a[1] * cubeSize, a[2] * cubeSize);
-          trace(b[0] * cubeSize, b[1] * cubeSize, b[2] * cubeSize);
-        }
-      }
+      // Vertical line
+      push();
+      moveRel(pos, -size, 0);
+      traceRel(0, 2 * size, 0);
+      pop();
     }
   }
+
+  // Draw the edges of the cube with pulsing effect
+
+  // Draw cube edges
+  // drawCubeEdges(cubeSize, pulse);
 }
 
 //------------------------------------------------------------------
@@ -232,7 +197,7 @@ function drawSolarSystem(t) {
   ];
 
   // Draw Sun
-  size(6);
+  size(4);
   fuzz(6, 0.8);
   residue(4);
 
@@ -319,7 +284,7 @@ function drawSolarSystem(t) {
 
     // Draw planet with surface detail
     size(8);
-    fuzz(3, 0.5);
+    fuzz(3, 0.3);
 
     // Draw planet as an ellipsoid
     drawEllipsoidLit(
@@ -330,8 +295,8 @@ function drawSolarSystem(t) {
       planet.size * planet.stretch.y,
       planet.size * planet.stretch.z,
       planet.color.h,
-      100,
-      { emmissive: false, ambient: 0.5, light: [0, 0, 0] },
+      120,
+      { emmissive: false, ambient: 0.3, light: [0, 0, 0] },
     );
 
     // Draw moon if planet has one
@@ -359,8 +324,9 @@ function drawSolarSystem(t) {
 
     // Draw rings if planet has them
     if (planet.rings) {
+      residue(0.5);
       size(4);
-      fuzz(2, 0.4);
+      fuzz(2, 0.1);
 
       // Draw two elliptical rings
       const ringColors = [planet.color.h + 0.3, planet.color.h - 0.3];

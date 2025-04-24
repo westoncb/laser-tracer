@@ -35,7 +35,7 @@ export default function App() {
   const combined = [...SYSTEM_EXAMPLES, ...userProgs];
   const findByKey = (k) => combined.find((p) => p.key === k);
   const [selectedKey, setSelectedKey] = useState(
-    SYSTEM_EXAMPLES.find((e) => e.label === "Text-test").key,
+    SYSTEM_EXAMPLES.find((e) => e.label === "Solar-system").key,
   );
   const sel = findByKey(selectedKey);
   const [title, setTitle] = useState(sel.label);

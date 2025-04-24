@@ -2,10 +2,10 @@ function program(tMs) {
   const t = tMs * 0.001;
   const R = 30;
   const arms = 7; // number of spikes
-  size(3);
+  size(2);
   spacing(15);
   residue(12);
-  fuzz(40, 0.4);
+  fuzz(40, 0.2);
 
   for (let a = 0; a < arms; a++) {
     const angle = (a / arms) * Math.PI * 2 + t * 0.6;
