@@ -2,238 +2,155 @@
 
 ## Overview
 
-Laser-Tracer is a real-time, programmable 3D virtual vector display enabling dynamic illuminated structures through sandboxed JavaScript scripting with turtle-graphics-style primitives. Users write code in a secure QuickJS environment using provided functions to define visual behavior. Programs execute automatically each animation frame:
+Laser-Tracer is a real-time, programmable virtual 3D vector display system that lets users create dynamic illuminated structures through simple turtle-graphics-style scripting in a sandboxed JavaScript environment (QuickJS). Each user-written script defines the tracer's movements, orientation, and particle-emission properties to produce a wide range of visual structures. Scripts execute automatically once per animation frame:
 
 ```javascript
-function program(timeMs) {
-  /* Your code here */
+function program(time) {
+  // Your drawing commands here
 }
 ```
 
-Each frame executes your user-defined program, spawning glowing particles mimicking phosphor decay dynamics of real vector displays.
+Each call defines points or paths, through built-in functions that spawn glowing particles, which mimic the decay characteristics of phosphor-based vector displays. Time parameter is in seconds.
 
-## Quick Reference Cheat-Sheet
+---
 
-| Verb         | Syntax                        | Description                            |
-| ------------ | ----------------------------- | -------------------------------------- |
-| **Teleport** | `teleport(x,y,z)`             | Move instantly; no particles emitted   |
-|              | `moveRel(dx,dy,dz)`           | Relative move; no particles emitted    |
-| **Drawing**  | `trace(x,y,z)`                | Draw line, evenly spaced particles     |
-|              | `traceRel(dx,dy,dz)`          | Relative line; evenly spaced particles |
-|              | `deposit(x,y,z)`              | Single particle emission at position   |
-| **Pose**     | `yaw(θ)` `pitch(θ)` `roll(θ)` | Change tracer orientation (degrees)    |
-|              | `push()` `pop()`              | Save/restore tracer pose & brush state |
+## Quick Reference
 
-# Laser-Tracer Technical Manual
+## Quick Reference
 
-## Overview
+| Functions                                           | Description                                                        |
+| --------------------------------------------------- | ------------------------------------------------------------------ |
+| `move(x,y,z)` / `moveRel(dx,dy,dz)`                 | Instantly move tracer (absolute/relative).                         |
+| `trace(x,y,z)` / `traceRel(dx,dy,dz)`               | Draw line emitting particles (spacing-dependent, abs./rel.).       |
+| `deposit(x,y,z)` / `depositRel(dx,dy,dz)`           | Emit single particle at position (abs./rel.).                      |
+| `yaw(deg)` / `pitch(deg)` / `roll(deg)`             | Rotate tracer (yaw=CCW left-right, pitch=nose-up/down, roll=axis). |
+| `push()` / `pop()`                                  | Save/restore tracer pose and brush state.                          |
+| `size(px)` / `spacing(dist)`                        | Set particle size (px) and spacing for `trace()`.                  |
+| `residue(seconds)`                                  | Particle lifetime.                                                 |
+| `fuzz(count,sx,sy,sz)`                              | Extra jittered particles; Gaussian spread (`sx, sy, sz`).          |
+| `colorHex(hex)`/`colorRGB(r,g,b)`/`colorHSV(h,s,v)` | Set particle color.                                                |
+| `colorViridis(t)` / `colorCubehelix(t,...)`         | Set particle color from special palettes.                          |
+| `drawText(...)` / `drawTextRel(...)`                | Emit text glyphs (absolute/relative).                              |
 
-Laser-Tracer is a real-time, programmable 3D virtual vector display enabling dynamic illuminated structures through sandboxed JavaScript scripting with turtle-graphics-style primitives. Users write code in a secure QuickJS environment using provided functions to define visual behavior. Programs execute automatically each animation frame:
+## Core Concepts
 
-```javascript
-function program(timeMs) {
-  /* Your code here */
-}
-```
+### Tracer State and Relative vs Absolute Commands
 
-Each frame executes your user-defined program, spawning glowing particles mimicking phosphor decay dynamics of real vector displays.
+Laser-Tracer maintains a tracer state consisting of:
 
-## Quick Reference Cheat-Sheet
+- **Position:** A vector indicating current tracer location.
+- **Orientation:** A quaternion representing current tracer rotation.
 
-| Verb        | Syntax                        | Description                                    |
-| ----------- | ----------------------------- | ---------------------------------------------- |
-| **Move**    | `move(x,y,z)`                 | Move instantly; no particles emitted           |
-|             | `moveRel(dx,dy,dz)`           | Relative move; no particles emitted            |
-| **Drawing** | `trace(x,y,z)`                | Draw line, particles spaced by `spacing()`     |
-|             | `traceRel(dx,dy,dz)`          | Relative line; particles spaced by `spacing()` |
-|             | `deposit(x,y,z)`              | Single particle emission at position           |
-| **Pose**    | `yaw(θ)` `pitch(θ)` `roll(θ)` | Change tracer orientation (degrees)            |
-|             | `push()` `pop()`              | Save/restore tracer pose & brush state         |
-| **Brush**   | `size(px)`                    | Particle sprite diameter (pixels)              |
-|             | `spacing(d)`                  | Particle spacing along `trace()` lines         |
-|             | `residue(s)`                  | Particle lifetime (seconds)                    |
-|             | `fuzz(count, sx, sy, sz)`     | Gaussian jitter around particle positions      |
-| **Colors**  | `colorHex(hex)`               | Set RGB color via hex value                    |
-|             | `colorRGB(r,g,b)`             | RGB color, values [0–1]                        |
-|             | `colorHSV(h,s,v)`             | HSV color, values [0–1]                        |
-|             | `colorViridis(t)`             | Viridis palette; `t` in [0–1]                  |
-|             | `colorCubehelix(t,...)`       | Cubehelix palette; parametric colors           |
+**Absolute Commands** (`move`, `trace`, `deposit`) set tracer state directly to provided coordinates.
 
-## Table of Contents
+**Relative Commands** (`moveRel`, `traceRel`, `depositRel`) perform operations based on current tracer state and update tracer position afterward. Each relative command implicitly modifies tracer position, affecting subsequent relative operations.
 
-- [Overview](#overview)
-- [Quick Reference Cheat-Sheet](#quick-reference-cheat-sheet)
-- [Frame Execution Model](#frame-execution-model)
-- [Tracer Pose](#tracer-pose)
-- [Drawing Primitives](#drawing-primitives)
-- [Brush & Particle System](#brush--particle-system)
-- [Performance Recommendations](#performance-recommendations)
-- [Example Programs](#example-programs)
+### Frame Execution
 
-## Frame Execution Model
+- **Entry Point:** Define a function `program(time)`.
+- **Automatic Execution:** Called once per animation frame, with `time` providing the current timestamp in milliseconds.
+- **Persistent State:** Tracer pose (position/orientation) and brush state (color, size, fuzz, spacing, residue) persist automatically between frames.
 
-### Program Entry Point
+### Particle Lifetime and Persistence
 
-- Define `program(timeMs)`.
-- Called once per frame, `timeMs` is current timestamp in milliseconds.
+- **Residue:** Each emitted particle remains visible for its defined lifetime (`residue`). Alpha fades gradually.
+- **Continuous Drawing:** To maintain persistent visual lines, re-emit ("refresh") the strokes each frame or at regular intervals shorter than particle lifetimes.
 
-### Persistent State Between Frames
-
-- **Tracer Pose** (position + orientation quaternion) persists.
-- **Brush State** (color, size, fuzz, spacing, residue) persists.
-
-Particles emitted each frame remain visible for their residue lifetime, fading out linearly over their lifetime.
-
-**Important**: Laser-Tracer is phosphor-like; lines persist only as particles fade. Retrace each frame to maintain visible lines or points.
-
-## Tracer Pose
-
-Tracer Pose includes a full 3-D orientation (quaternion) and position. Orientation is cumulative:
-
-- `yaw(θ)`: Yaw left/CCW by θ degrees
-- `pitch(θ)`: Pitch nose-up by θ degrees
-- `roll(θ)`: Roll clockwise by θ degrees
-- `moveRel(dx,dy,dz)` and `traceRel(dx,dy,dz)` are orientation-relative moves.
-- Save and restore pose with `push()` and `pop()`.
+---
 
 ## Drawing Primitives
 
-### Motion (No Particles)
+### Movement (No Particle Emission)
 
-- **`move(x,y,z)`**: Instantly moves without emitting particles.
-- **`moveRel(dx,dy,dz)`**: Relative move based on current orientation.
+- **`move(x, y, z)`**: Instantly move tracer to absolute coordinates.
+- **`moveRel(dx, dy, dz)`**: Move tracer relative to current orientation and position.
 
-### Drawing + Motion
+### Drawing with Movement
 
-- **`trace(x,y,z)`**: Emits particles spaced by the `spacing()` parameter along the line from current position to `(x,y,z)`, then moves tracer there.
-- **`traceRel(dx,dy,dz)`**: Orientation-relative trace operation.
+- **`trace(x, y, z)`**: Emit particles at evenly spaced intervals (determined by the `spacing()` brush property) from the current position to `(x,y,z)` and update tracer position.
+- **`traceRel(dx, dy, dz)`**: Relative version of `trace`, using tracer’s current orientation and position.
 
-Particle spacing is set by `spacing(d)` (world-units). Smaller spacing increases particle density significantly.
+### Single Point Drawing
 
-### Drawing Only
+- **`deposit(x, y, z)`**: Emit a particle exactly at `(x,y,z)`, updating tracer position.
+- **`depositRel(dx, dy, dz)`**: Relative version of `deposit`; depositRel(0,0,0) emits a particle at the tracer’s current position and updates that position.
 
-- **`deposit(x,y,z)`**: Emits particles exactly at specified coordinates. Updates tracer position without intermediate particle spacing.
+---
 
-## Brush & Particle System
+## Orientation Controls
 
-### Brush Parameters
+Tracer orientation is cumulative, affecting subsequent relative movements:
+
+- **`yaw(degrees)`**: Rotate tracer left/right (positive = CCW).
+- **`pitch(degrees)`**: Rotate tracer up/down (positive = nose-up).
+- **`roll(degrees)`**: Rotate tracer around forward axis (positive = clockwise).
+
+---
+
+## Transformation Stack (push/pop)
+
+Laser-Tracer maintains a transformation stack similar to matrix stacks in traditional graphics:
+
+- **`push()`**: Save current tracer pose (position/orientation) and brush properties.
+- **`pop()`**: Restore previously saved pose and brush state.
+
+Use push/pop for hierarchical, recursive, or complex nested transformations.
+
+---
+
+## Brush Parameters
+
+Control visual appearance of emitted particles:
 
 - **`size(px)`**: Particle sprite diameter in pixels.
-- **`spacing(d)`**: Distance between particles along `trace()` lines (default: 1 world-unit).
-- **`residue(s)`**: Particle lifetime (seconds); linear fade-out.
-- **`fuzz(count, sx, sy, sz)`**: Jitter around emitted particles (Gaussian distribution).
+- **`spacing(dist)`**: Distance between particles emitted by `trace()`. Ignored by `deposit()`.
+- **`residue(seconds)`**: Lifetime of particles.
+- **`fuzz(count, sx, sy, sz)`**: Emit additional jittered particles around each particle (Gaussian-distributed fuzziness).
 
 ### Color Functions
 
-- **`colorHex(hex)`**: RGB hex color (e.g., `0xffaa00`).
-- **`colorRGB(r,g,b)`**: RGB components (0–1).
-- **`colorHSV(h,s,v)`**: Hue, Saturation, Value (0–1).
-- **`colorViridis(t)`**: Viridis palette color; `t` (0–1).
-- **`colorCubehelix(t, start=0.5, rot=-1.5, gamma=1)`**: Parametric Cubehelix colors.
+- **`colorHex(hex)`**: Set particle color with RGB hex value (e.g., `0xffaa00`).
+- **`colorRGB(r,g,b)`**: Set particle color with RGB values [0–1].
+- **`colorHSV(h,s,v)`**: Set particle color using HSV values [0–1].
+- **`colorViridis(t)`**: Choose color from the Viridis palette, `t` in [0–1].
+- **`colorCubehelix(t, start=0.5, rot=-1.5, gamma=1)`**: Cubehelix parametric color scheme.
+
+---
+
+### Text Rendering
+
+- **`drawText(txt, x, y, z, height)`**: Emit glyphs at absolute position.
+- **`drawTextRel(txt, dx, dy, dz, height)`**: Emit glyphs at relative position.
+
+Text is drawn using trace commands which are impacted by `spacing` and `fuzz` brush properties.
+
+## Persistent Variables
+
+Variables defined outside the `program(time)` function persist across frames, allowing stateful animations or persistent particle systems.
+
+Example:
+
+```javascript
+let angle = 0;
+function program(time) {
+  angle += 0.01;
+  yaw(angle);
+  traceRel(0, 0, 10);
+}
+```
 
 ## Performance Recommendations
 
-- Recommended particle cap: ~500,000 visible particles for 60 FPS.
-- Recommended particle spacing (`spacing`): ≥0.5 world-units (default is 1; decreasing spacing increases particle density).
-- Recommended `residue` lifetimes:
-  - Short (0.2–1s)
-  - Medium (1–3s)
-  - Long (3–10s)
-- Moderate fuzz (`count ≤ 10`) balances visuals/performance. Use `fuzz(0)` for sharp lines.
+- **Particle Limit:** Aim for ≤ **500,000 visible particles** for smooth performance on typical GPUs.
+- **Spacing:** Recommended ≥ `0.2` world-units. Smaller spacing drastically increases particle count.
+- **Residue Guidelines:**
+  - Short: `0.2–1s`
+  - Medium: `1–3s`
+  - Long: `3–10s`
+- **Fuzz:** Moderate fuzz (typically `count ≤ 10`). Every deposit (or indirect deposits through trace commands) spawns extra `count` particles, significantly increasing particle counts.
 
-## Example Programs
+---
 
-- [Shield Mandala](#)
-- [Lorenz Flow](#)
-- [Cubehelix Spiral](#)
-- [Webbed Orb](#)
-- [Beat Lattice](#)
+## Examples
 
-(Links to individual examples would be provided here.)
-
-| | `colorRGB(r,g,b)` | RGB color, values [0–1] |
-| | `colorHSV(h,s,v)` | HSV color, values [0–1] |
-| | `colorViridis(t)` | Viridis palette; `t` in [0–1] |
-| | `colorCubehelix(t,...)` | Cubehelix palette; parametric colors |
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Quick Reference Cheat-Sheet](#quick-reference-cheat-sheet)
-- [Frame Execution Model](#frame-execution-model)
-- [Tracer Pose](#tracer-pose)
-- [Drawing Primitives](#drawing-primitives)
-- [Brush & Particle System](#brush--particle-system)
-- [Performance Recommendations](#performance-recommendations)
-- [Example Programs](#example-programs)
-
-## Frame Execution Model
-
-### Program Entry Point
-
-- Define `program(timeMs)`.
-- Called once per frame, `timeMs` is current timestamp in milliseconds.
-
-### Persistent State Between Frames
-
-- **Tracer Pose** (position + orientation quaternion) persists.
-
-## Tracer Pose
-
-Tracer Pose includes a full 3-D orientation (quaternion) and position. Orientation is cumulative:
-
-- `yaw(θ)`: Yaw left/CCW by θ degrees
-- `pitch(θ)`: Pitch nose-up by θ degrees
-- `roll(θ)`: Roll clockwise by θ degrees
-- `moveRel(dx,dy,dz)` and `traceRel(dx,dy,dz)` are orientation-relative moves.
-- Save and restore pose with `push()` and `pop()`.
-
-## Drawing Primitives
-
-### Motion (No Particles)
-
-- **`teleport(x,y,z)`**: Instantly moves without emitting particles.
-- **`moveRel(dx,dy,dz)`**: Relative teleport based on current orientation.
-
-### Drawing + Motion
-
-- **`trace(x,y,z)`**: Emits evenly spaced particles along line to `(x,y,z)`, then moves tracer there.
-- **`traceRel(dx,dy,dz)`**: Orientation-relative trace operation.
-
-Particle spacing is set by `spacing(d)` (world-units). Smaller spacing increases particle density significantly.
-
-### Drawing Only
-
-- **`deposit(x,y,z)`**: Emits particles exactly at specified coordinates. Updates tracer position without intermediate particle spacing.
-
-## Brush & Particle System
-
-### Brush Parameters
-
-### Color Functions
-
-- **`colorHex(hex)`**: RGB hex color (e.g., `0xffaa00`).
-- **`colorRGB(r,g,b)`**: RGB components (0–1).
-- **`colorHSV(h,s,v)`**: Hue, Saturation, Value (0–1).
-- **`colorViridis(t)`**: Viridis palette color; `t` (0–1).
-- **`colorCubehelix(t, start=0.5, rot=-1.5, gamma=1)`**: Parametric Cubehelix colors.
-
-## Performance Recommendations
-
-- Recommended particle cap: ~500,000 visible particles for 60 FPS.
-- Suggested minimum `spacing`: ≥ 0.5 world-units.
-- Recommended `residue` lifetimes:
-  - Short (0.2–1s)
-  - Medium (1–3s)
-  - Long (3–10s)
-- Moderate fuzz (`count ≤ 10`) balances visuals/performance. Use `fuzz(0)` for sharp lines.
-
-## Example Programs
-
-- [Shield Mandala](#)
-- [Lorenz Flow](#)
-- [Cubehelix Spiral](#)
-- [Webbed Orb](#)
-- [Beat Lattice](#)
-
-(Links to individual examples would be provided here.)
+<blank for now>
