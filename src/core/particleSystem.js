@@ -218,7 +218,7 @@ class ParticleContainer extends THREE.Object3D {
     let size = opts.size ?? 10;
     const life = opts.lifetime ?? 5;
 
-    if (this.DPR) size *= this.DPR;
+    // if (this.DPR) size *= this.DPR;
     const startT = timeSeconds;
 
     arrF32[base + 0] = pos.x; // positionStart
