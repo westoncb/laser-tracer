@@ -19,7 +19,6 @@ function drawCubeFrame(t) {
   const minorDiv = 5; // minor subdivisions inside each major square
   const spacingMaj = 1.0; // particle spacing for major lines
   const spacingMin = 1.5; // particle spacing for minor lines
-  const pulse = Math.sin(t * 0.5) * 0.5 + 0.5; // 0‥1 edge‑glow
 
   residue(3);
 

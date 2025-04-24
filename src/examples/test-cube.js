@@ -1,7 +1,3 @@
-/* ================================================================
-   PARAMETRIC  CAD-GRID  CUBE
-   --------------------------------------------------------------- */
-
 /* ---------------- configuration knobs ------------------------- */
 const CFG = {
   halfExtent: 32, // cube half-size
@@ -106,23 +102,6 @@ function drawCube(L) {
     }
   };
 
-  /* C. accent edges -------------------------------------------- */
-  const drawEdges = () => {
-    setLineStyle("edge");
-    const c = [-L, L];
-
-    const edge = (p, q) => {
-      push();
-      moveRel(...p);
-      traceRel(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
-      pop();
-    };
-
-    for (const y of c) for (const z of c) edge([-L, y, z], [L, y, z]); // X
-    for (const x of c) for (const z of c) edge([x, -L, z], [x, L, z]); // Y
-    for (const x of c) for (const y of c) edge([x, y, -L], [x, y, L]); // Z
-  };
-
   /* ----------- iterate over the six faces --------------------- */
   const faces = [
     [0, 0, 0], // front  (+Z)
@@ -138,14 +117,11 @@ function drawCube(L) {
     pitch(r[0]);
     yaw(r[1]);
     roll(r[2]);
-    moveRel(0, 0, -L + 0.05); // inset so grid & bands don’t z-fight
+    moveRel(0, 0, -L);
     drawGrid();
     drawBands();
     pop();
   }
-
-  /* world-space edge pass */
-  // drawEdges();
 }
 
 /* ----------------------------------------------------------------
@@ -154,7 +130,7 @@ function drawCube(L) {
 function setLineStyle(kind) {
   switch (kind) {
     case "minor":
-      size(9);
+      size(10);
       colorHex(CFG.colourMinor);
       break;
     case "major":
