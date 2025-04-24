@@ -11,8 +11,7 @@ function hsv(h, s, v) {
   );
 }
 
-function program(tMs) {
-  const t = tMs * 0.001;
+function program(t) {
   const R = 45 + 10 * Math.sin(t); // torus breath
   const r = 7;
   const N = 600;

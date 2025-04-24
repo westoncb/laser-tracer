@@ -10,7 +10,7 @@ const plane = (x, z, k, a) => Math.cos(k * (x * Math.cos(a) + z * Math.sin(a)));
 // custom cubehelix implementation
 function cubehelix(h) {
   const a = 0.5,
-    b = 1.4; // brightness, saturation
+    b = 1; // brightness, saturation
   const ang = 2 * Math.PI * (h + 0.5);
   const amp = b * ang;
   const c = a + amp * (Math.cos(ang) - 0.148 * Math.sin(ang));
@@ -22,8 +22,7 @@ function cubehelix(h) {
   return (r << 16) | (g << 8) | b2;
 }
 
-function program(tMs) {
-  const t = tMs * 0.001;
+function program(t) {
   size(3);
   residue(6);
   fuzz(7, 2);

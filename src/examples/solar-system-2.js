@@ -1,7 +1,6 @@
-function program(timeMs) {
+function program(t) {
   push(); // save whatever pose we inherited
 
-  const t = timeMs * 0.001;
   residue(5);
   drawSolarSystem(t);
   drawCubeFrame();

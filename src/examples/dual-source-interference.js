@@ -27,9 +27,7 @@ function phaseColor(phase) {
   }
 }
 
-function program(tMs) {
-  const t = tMs * 0.001; // seconds
-
+function program(t) {
   /* Moving source centres (slow Lissajous drift) */
   const src1 = {
     x: 20 * Math.sin(t * 0.23),

@@ -396,9 +396,8 @@ function drawCentralGlow(t) {
 }
 
 /***** 7 · Main entry point **************************************************/
-function program(timeMs) {
+function program(t) {
   const cfg = globalThis.__hyperCfg;
-  const t = timeMs * 0.001;
 
   // If pattern changes, track time offset for smooth animation
   const currentPattern = Math.floor(t / 15) % 3;

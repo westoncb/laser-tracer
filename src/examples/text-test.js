@@ -2,9 +2,7 @@
    WORD‑CUBE — transform‑hierarchy & text‑helper playground
    --------------------------------------------------------------- */
 
-function program(timeMs) {
-  const t = timeMs * 0.001;
-
+function program(t) {
   /* ── global defaults ───────────────────────────────────────── */
   size(4); // sprite diameter
   spacing(0.5); // smooth text strokes

@@ -50,7 +50,8 @@ function lorenzStep(p, dt) {
   };
 }
 
-function program(tMs) {
+function program(t) {
+  const tMs = t * 1000;
   // --- brush -----------------------------------------------------
   size(PX_SIZE);
   residue(RESIDUE);

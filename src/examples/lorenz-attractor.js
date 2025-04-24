@@ -13,7 +13,8 @@ function hsv(h, s, v) {
 let x = 0.1,
   y = 0,
   z = 0; // initial point
-function program(tMs) {
+function program(time) {
+  const tMs = time * 1000;
   const dt = 0.004,
     σ = 10,
     β = 8 / 3,

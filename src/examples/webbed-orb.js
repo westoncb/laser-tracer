@@ -1,5 +1,4 @@
-function program(tMs) {
-  const t = tMs * 0.001;
+function program(t) {
   const R = 30;
   const arms = 7; // number of spikes
   size(2);

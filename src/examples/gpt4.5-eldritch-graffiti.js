@@ -1,4 +1,5 @@
-function program(tMs) {
+function program(timeSeconds) {
+  const time = timeSeconds * 1000; //ms
   const spikes = 16; // Number of crystal spikes
   const segments = 40; // Segments per spike
   const radius = 15; // Base radius of spikes
@@ -10,9 +11,9 @@ function program(tMs) {
   spacing(1);
 
   // Rotate entire structure slowly over time
-  yaw(tMs * rotationSpeed * 60);
-  pitch(tMs * rotationSpeed * 40);
-  roll(tMs * rotationSpeed * 20);
+  yaw(time * rotationSpeed * 60);
+  pitch(time * rotationSpeed * 40);
+  roll(time * rotationSpeed * 20);
 
   for (let i = 0; i < spikes; i++) {
     push();
@@ -27,13 +28,13 @@ function program(tMs) {
       // Crystal-like geometry: jagged spikes modulated by sine functions
       const length =
         radius +
-        spikeLength * Math.abs(Math.sin(t * Math.PI * 4 + tMs * 0.001 + i));
+        spikeLength * Math.abs(Math.sin(t * Math.PI * 4 + time * 0.001 + i));
 
       const x = 0;
       const y = length * t;
-      const z = Math.sin(t * 12 * Math.PI + tMs * 0.0005) * (radius / 3);
+      const z = Math.sin(t * 12 * Math.PI + time * 0.0005) * (radius / 3);
 
-      const hue = (i / spikes + t + tMs * 0.0001) % 1;
+      const hue = (i / spikes + t + time * 0.0001) % 1;
       size(2 + 5 * (1 - t));
       colorCubehelix(hue, 0.5, -1.5, 1);
 
@@ -48,6 +49,6 @@ function program(tMs) {
   fuzz(800, 3.0);
   size(12);
   residue(5);
-  colorViridis((tMs * 0.00008) % 1);
+  colorViridis((time * 0.00008) % 1);
   deposit(0, 0, 0);
 }

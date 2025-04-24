@@ -1,4 +1,5 @@
-function program(tMs) {
+function program(time) {
+  const tMs = time * 1000;
   const layers = 6; // Number of concentric layers
   const spokesPerLayer = 32; // Spokes in each layer
   const baseRadius = 10; // Starting radius

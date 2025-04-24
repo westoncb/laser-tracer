@@ -16,8 +16,7 @@ function cubehelix(h) {
 }
 
 let θ = 0;
-function program(tMs) {
-  const t = tMs * 0.001;
+function program(t) {
   const N = 1200;
   size(3);
   residue(4);

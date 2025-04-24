@@ -1,4 +1,5 @@
-function program(tMs) {
+function program(time) {
+  const tMs = time * 1000;
   const numTendrils = 8;
   const segments = 100;
   const baseRadius = 15;

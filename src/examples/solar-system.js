@@ -1,7 +1,4 @@
-function program(timeMs) {
-  // Time variables
-  const t = timeMs * 0.001;
-
+function program(t) {
   // Configure global properties
   residue(5);
 
@@ -49,14 +46,14 @@ function drawCubeFrame(t) {
     moveRel(0, 0, -cubeSize);
 
     // ----- minor grid (thinner, dimmer) -----
-    size(2);
+    size(7);
     spacing(spacingMin);
     fuzz(3, 1);
     colorHSV(0.33, 0.3, 0.25); // muted green
     drawGrid(cubeSize, majorDiv * minorDiv, false, minorDiv);
 
     // ----- major grid (heavier, brighter) ---
-    size(4);
+    size(5);
     fuzz(3, 2);
     spacing(spacingMaj);
     colorHSV(0.33, 0.35, 0.45); // brighter green
@@ -65,7 +62,7 @@ function drawCubeFrame(t) {
     // Draw face label
     push();
     moveRel(0, 0, -0.5); // Slightly in front of the grid
-    size(4);
+    size(5);
     residue(0.5);
     spacing(0.15);
     fuzz(0);
@@ -283,7 +280,7 @@ function drawSolarSystem(t) {
     const y = Math.cos(angle * 0.5) * 2; // Slight up/down motion
 
     // Draw planet with surface detail
-    size(8);
+    size(12);
     fuzz(3, 0.3);
 
     // Draw planet as an ellipsoid

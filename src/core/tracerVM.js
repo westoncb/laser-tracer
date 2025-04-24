@@ -152,7 +152,7 @@ export default class TracerVM {
     tracer._beginTick();
 
     /* run user program ------------------------------------------------ */
-    const tMs = this.ctx.newNumber(timeSeconds * 1000);
+    const tMs = this.ctx.newNumber(timeSeconds);
     const r = this.ctx.callFunction(
       this.programHandle,
       this.ctx.undefined,

@@ -25,8 +25,7 @@ function gauss() {
 /* spiral parameters */
 let θ = 0; // running angle
 
-function program(tMs) {
-  const t = tMs * 0.001;
+function program(t) {
   const N = 700; // backbone samples / frame
   const splat = 6; // fuzz points per backbone vertex
   const R0 = 28,

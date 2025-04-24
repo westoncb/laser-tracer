@@ -19,9 +19,7 @@ const CFG = {
 /* ----------------------------------------------------------------
    ENTRY POINT – called once per animation frame
 -----------------------------------------------------------------*/
-function program(timeMs) {
-  const t = timeMs * 0.001;
-
+function program(t) {
   residue(0.4);
   spacing(0.2);
   fuzz(0);
