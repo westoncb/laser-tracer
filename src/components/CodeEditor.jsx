@@ -74,7 +74,17 @@ const CodeEditor = forwardRef(function CodeEditor(
           suggest: { showWords: false },
         }}
       />
-      {compileErr && <div className="compile-error">{compileErr}</div>}
+      {compileErr && (
+        <div
+          className="compile-error"
+          ref={(el) => {
+            // Auto-scroll to the top whenever the error changes
+            if (el) el.scrollTop = 0;
+          }}
+        >
+          {compileErr}
+        </div>
+      )}
     </div>
   );
 });

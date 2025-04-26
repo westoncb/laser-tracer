@@ -92,7 +92,8 @@ body,
 
 .compile-error {
     position: absolute;
-    inset-inline: 0;
+    left: 0;
+    right: 0;
     bottom: 0;
     z-index: 10;
     background: rgba(34, 0, 0, 0.92);
@@ -100,7 +101,14 @@ body,
     font-size: 0.85rem;
     white-space: pre-wrap;
     border-top: 1px solid #400;
-    pointer-events: none;
+    max-height: 30%;
+    overflow-y: auto;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.4);
+    font-family: monospace;
+    line-height: 1.4;
+    /* Ensure text is fully visible */
+    padding-bottom: 1.5rem;
+    box-sizing: border-box;
 }
 
 /* -------------------------------------------------- canvas */
