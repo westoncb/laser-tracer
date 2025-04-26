@@ -86,6 +86,8 @@ export default function LaserCanvas({
     resize();
     window.addEventListener("resize", resize);
 
+    tracerLib.renderer = renderer;
+
     let elapsedTime = 0;
 
     /* --- RAF loop ----------------------------------------------- */

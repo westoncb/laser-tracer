@@ -65,15 +65,26 @@ function viridisHex(t) {
 }
 
 /* ---------- parametric cubehelix ---------------------------------- */
+// t ∈ [0,1]  ·  start ∈ [0,3]  (0 = red, 1 = green, 2 = blue)
 function cubehelixHex(t, start = 0.5, rot = -1.5, gamma = 1) {
+  // --- normalise & gamma --------------------------------------
   t = Math.pow(Math.max(0, Math.min(1, t)), gamma);
-  const a = 0.5;
-  const phi = 2 * Math.PI * (start + rot * t);
-  const amp = a * t * (1 - t);
-  const r = t + amp * (-0.14861 * Math.cos(phi) + 1.78277 * Math.sin(phi));
-  const g = t + amp * (-0.29227 * Math.cos(phi) - 0.90649 * Math.sin(phi));
-  const b = t + amp * (1.97294 * Math.cos(phi));
-  return rgb2hex(r, g, b);
+
+  // --- core cubehelix calculation -----------------------------
+  const phi = 2 * Math.PI * (start / 3 + rot * t); // ← divide start by 3
+  const amp = 0.5 * t * (1 - t); // 0 at both ends, 0.125 mid
+
+  let r = t + amp * (-0.14861 * Math.cos(phi) + 1.78277 * Math.sin(phi));
+  let g = t + amp * (-0.29227 * Math.cos(phi) - 0.90649 * Math.sin(phi));
+  let b = t + amp * (+1.97294 * Math.cos(phi));
+
+  // --- clamp to [0,1] then → 24-bit hex ------------------------
+  r = Math.min(1, Math.max(0, r));
+  g = Math.min(1, Math.max(0, g));
+  b = Math.min(1, Math.max(0, b));
+
+  // Convert to integer 0xRRGGBB
+  return ((r * 255) << 16) | ((g * 255) << 8) | (b * 255) | 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -102,6 +113,12 @@ export default {
 
   /** colourCubehelix(tracer, t, start?, rot?, gamma?) */
   colorCubehelix(tracer, t, start = 0.5, rot = -1.5, gamma = 1) {
-    tracer.color(cubehelixHex(t, start, rot, gamma));
+    const color = cubehelixHex(t, start, rot, gamma);
+    tracer.color(cubehelixHex(color));
+    return color;
+  },
+
+  setBGColor(tracer, hex) {
+    this.renderer.setClearColor(hex);
   },
 };
