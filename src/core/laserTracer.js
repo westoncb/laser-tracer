@@ -19,7 +19,16 @@ const MAX_PARTICLES = 500_000;
 
 /*=====================================================================*/
 class LaserTracer {
-  constructor({ maxParticles = MAX_PARTICLES } = {}) {
+  constructor() {
+    /* ── rendering -------------------------------------------------- */
+    this.particleSystem = new ParticleSystem({ maxParticles: MAX_PARTICLES });
+    this.obj3d = new THREE.Object3D();
+    this.obj3d.add(this.particleSystem);
+
+    this.resetState();
+  }
+
+  resetState() {
     /* ── brush state ──────────────────────────────────────────────── */
     this.options = {
       // NB: color is a THREE.Color instance to avoid hidden allocs
@@ -46,11 +55,6 @@ class LaserTracer {
       rot: new THREE.Quaternion(),
     };
     this.stack = [];
-
-    /* ── rendering -------------------------------------------------- */
-    this.particleSystem = new ParticleSystem({ maxParticles });
-    this.obj3d = new THREE.Object3D();
-    this.obj3d.add(this.particleSystem);
 
     /* ── tick-budget throttle ------------------------------------ */
     this._tickBudget = SPAWNS_PER_TICK; // deposits allowed per VM tick

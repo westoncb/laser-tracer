@@ -37,6 +37,12 @@ export default class TracerManager {
     return this.tracers[type + "Tracer"];
   }
 
+  getActiveTracers() {
+    return Object.entries(this.tracers)
+      .filter(([key]) => this.enableTable[key])
+      .map(([, tracer]) => tracer);
+  }
+
   /* -------------------------------------------------------------- */
   // Scene wiring
   /* -------------------------------------------------------------- */
@@ -80,6 +86,7 @@ export default class TracerManager {
     this.dispose(scene);
     this.init();
     this.attachToScene(scene);
+    this.getActiveTracers().forEach((t) => t.resetState());
   }
 
   /* private */
