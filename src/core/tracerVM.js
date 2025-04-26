@@ -1,55 +1,98 @@
-// TracerVM.js – direct‑binding rewrite (v2.2)
-// ===============================================================
-// Fix: host binding now invokes tracer methods with the correct
-//      `this` context (avoids `this === undefined` errors).
-//      No other behavioural changes.
-
 import variant from "@jitl/quickjs-singlefile-browser-release-sync";
 import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
 
 /* ------------------------------------------------------------------ */
-/* 1.  PRELUDE (executed inside QuickJS VM)                            */
+/* 1 · PRELUDE (executed inside QuickJS VM)                           */
 /* ------------------------------------------------------------------ */
-const PRELUDE_VERSION = 2;
+const PRELUDE_VERSION = 3;
 
 const PRELUDE = String.raw`
 // ==== Laser-Tracer PRELUDE (v${PRELUDE_VERSION}) ====================
-// Thin wrappers that forward to host‑injected opcodes.  No recursion!
+// Creates a *pen* object backed by host opcodes and a stateless *draw*
+// helper.
 
-/* --- orientation & transform stack ------------------------------- */
-const push  = () => globalThis.push();
-const pop   = () => globalThis.pop();
-const yaw   = d  => globalThis.yaw(d);
-const pitch = d  => globalThis.pitch(d);
-const roll  = d  => globalThis.roll(d);
+// ----- host-bridged opcodes ----------------------------------------
+const _h = globalThis; // shorthand
 
-/* --- movement / drawing ------------------------------------------ */
-const move       = (x,y,z)        => globalThis.move(x,y,z);
-const moveRel    = (dx,dy,dz)     => globalThis.moveRel(dx,dy,dz);
-const trace      = (x,y,z)        => globalThis.trace(x,y,z);
-const traceRel   = (dx,dy,dz)     => globalThis.traceRel(dx,dy,dz);
-const deposit    = (x,y,z)        => globalThis.deposit(x,y,z);
-const depositRel = (dx,dy,dz)     => globalThis.depositRel(dx,dy,dz);
+// ─────────────── pen object ───────────────
+const pen = {
+  /* stack & orientation */
+  push : () => _h.push(),
+  pop  : () => _h.pop(),
+  yaw  : d => _h.yaw(d),
+  pitch: d => _h.pitch(d),
+  roll : d => _h.roll(d),
 
-/* --- text helpers ------------------------------------------------- */
-const drawText    = (t,x,y,z,h=4)    => globalThis.drawText(t,x,y,z,h);
-const drawTextRel = (t,dx,dy,dz,h=4) => globalThis.drawTextRel(t,dx,dy,dz,h);
+  dotSize   : px => _h.dotSize(px),
+  traceGap  : d  => _h.traceGap(d),
+  residue   : s  => _h.residue(s),
+  fuzz      : (n=0,sx=4,sy=sx,sz=sx)=>_h.fuzz(n|0,+sx,+sy,+sz),
+  colorHex  : hex => _h.colorHex(hex >>> 0),
 
-/* --- particle parameters ----------------------------------------- */
-const size     = px => globalThis.size(px);
-const spacing  = d  => globalThis.spacing(d);
-const residue  = s  => globalThis.residue(s);
-const fuzz     = (n=0,sx=4,sy=sx,sz=sx)=>globalThis.fuzz(n|0,+sx,+sy,+sz);
 
-/* --- colour helpers ---------------------------------------------- */
-const colorRGB       = (r,g,b)                  => globalThis.colorRGB(r,g,b);
-const colorHSV       = (h,s,v)                  => globalThis.colorHSV(h,s,v);
-const colorViridis   = t                        => globalThis.colorViridis(t);
-const colorCubehelix = (t,st=.5,rot=-1.5,g=1)   => globalThis.colorCubehelix(t,st,rot,g);
-const colorHex       = hex                      => globalThis.colorHex(hex>>>0);
-const color          = colorHex; // back‑compat
+  /* motion & strokes */
+  moveTo : (x,y,z)    => _h.moveTo(x,y,z),
+  moveBy : (dx,dy,dz) => _h.moveBy(dx,dy,dz),
+  traceTo: (x,y,z)    => _h.traceTo(x,y,z),
+  traceBy: (dx,dy,dz) => _h.traceBy(dx,dy,dz),
+  dot    : ()         => _h.dot(),
+  dotAt  : (x,y,z)    => _h.dotAt(x,y,z),
 
-const setBGColor = hex => globalThis.setBGColor(hex);
+  /* mutable brush settings (treated as data) */
+  settings : {
+    dotSize  : 5,
+    traceGap : 1,
+    residue  : 1,
+    fuzz     : { count:0, sx:0, sy:0, sz:0 },
+    color    : 0xaa88ff,
+  },
+
+  /* colour helpers still convenient */
+  colorRGB       : (r,g,b)                => _h.colorRGB(r,g,b),
+  colorHSV       : (h,s,v)                => _h.colorHSV(h,s,v),
+  colorViridis   : t                      => _h.colorViridis(t),
+  colorCubehelix : (t,st=.5,rot=-1.5,g=1) => _h.colorCubehelix(t,st,rot,g),
+  colorHex       : hex                    => { pen.settings.color = hex>>>0; },
+  color       : hex                    => { pen.settings.color = hex>>>0; },
+
+  /* --- text helpers ------------------------------------------------- */
+  drawText    : (t,x,y,z,h=4)    => globalThis.drawText(t,x,y,z,h),
+  drawTextRel : (t,dx,dy,dz,h=4) => globalThis.drawTextRel(t,dx,dy,dz,h),
+};
+
+// expose pen for ad-hoc debugging *inside* QuickJS
+globalThis.pen = pen;
+
+// ─────────────── draw helpers (stateless) ───────────────
+const draw = {
+  line(p0, p1) {
+    pen.push();
+    pen.moveTo(p0.x, p0.y, p0.z);
+    pen.traceTo(p1.x, p1.y, p1.z);
+    pen.pop();
+  },
+  polyline(pts) {
+    if (!pts.length) return;
+    pen.push();
+    pen.moveTo(pts[0].x, pts[0].y, pts[0].z);
+    for (let i = 1; i < pts.length; i++)
+      pen.traceTo(pts[i].x, pts[i].y, pts[i].z);
+    pen.pop();
+  },
+  point(p) {
+    pen.push(); pen.moveTo(p.x,p.y,p.z); pen.dot(); pen.pop();
+  },
+  text(str, p, h = 4) {
+    pen.push(); pen.moveTo(p.x,p.y,p.z);
+    drawText(str, 0, 0, 0, h);
+    pen.pop();
+  },
+};
+
+globalThis.draw = draw;
+
+// ---- colour utilities (kept from v2) ------------------------------
+const setBGColor = hex => _h.setBGColor(hex);
 
 // t ∈ [0,1]  ·  start ∈ [0,3]  (0 = red, 1 = green, 2 = blue)
 function cubehelixHex(t, start = 0.5, rot = -1.5, gamma = 1) {
@@ -66,15 +109,17 @@ function cubehelixHex(t, start = 0.5, rot = -1.5, gamma = 1) {
 }
 `;
 
-/* ------------------------------------------------------------------ */
-/* 2.  Source wrapper                                                 */
-/* ------------------------------------------------------------------ */
 function buildProgramWrapper(userSource) {
-  return `// — wrapped by TracerVM —\n${PRELUDE}\n${userSource}\nreturn program;`;
+  return (
+    // Line-1 wrapper ⇣   (user code now starts on line-2)
+    "globalThis.program = (function () {\n" +
+    userSource +
+    "\nreturn program;\n})();"
+  );
 }
 
 /* ------------------------------------------------------------------ */
-/* 3.  QuickJS error → string                                         */
+/* 3 · QuickJS error → string                                         */
 /* ------------------------------------------------------------------ */
 function stringifyQJSError(ctx, errHandle) {
   const dumped = ctx.dump(errHandle);
@@ -91,36 +136,41 @@ function stringifyQJSError(ctx, errHandle) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 4.  Host bindings                                                  */
+/* 4 · Host bindings                                                  */
 /* ------------------------------------------------------------------ */
 function makeDecoders(ctx) {
   const N = (h) => ctx.getNumber(h);
   const S = (h) => ctx.getString(h);
-  const D = (h) => ctx.dump(h);
   return {
-    move: [N, N, N],
-    moveRel: [N, N, N],
-    trace: [N, N, N],
-    traceRel: [N, N, N],
-    deposit: [N, N, N],
-    depositRel: [N, N, N],
+    // motion & pen
+    moveTo: [N, N, N],
+    moveBy: [N, N, N],
+    traceTo: [N, N, N],
+    traceBy: [N, N, N],
+    dotAt: [N, N, N],
+    dot: [],
+    push: [],
+    pop: [],
     yaw: [N],
     pitch: [N],
     roll: [N],
-    size: [N],
-    spacing: [N],
-    residue: [N],
-    fuzz: [N, N, N, N],
-    push: [],
-    pop: [],
     drawText: [S, N, N, N, N],
     drawTextRel: [S, N, N, N, N],
+
+    // colour helpers
     colorRGB: [N, N, N],
     colorHSV: [N, N, N],
     colorViridis: [N],
     colorCubehelix: [N, N, N, N],
     colorHex: [N],
     setBGColor: [N],
+
+    // pen settings
+    dotSize: [N],
+    traceGap: [N],
+    residue: [N],
+    fuzz: [N, N, N, N],
+    colorHex: [N],
   };
 }
 
@@ -129,34 +179,26 @@ let _lib = null;
 
 function bindAllHostFns(ctx) {
   const decTbl = makeDecoders(ctx);
-
   Object.entries(decTbl).forEach(([op, decoders]) => {
     const fn = ctx.newFunction(op, (...handles) => {
-      /* ---- decode arguments ------------------------------------- */
       const args = handles.map((h, i) => {
-        const val = (decoders[i] || ctx.dump)(h);
+        const v = (decoders[i] || ctx.dump)(h);
         h.dispose();
-        return val;
+        return v;
       });
-
-      /* ---- dispatch --------------------------------------------- */
       if (_tracer && typeof _tracer[op] === "function") {
-        // Method call preserves `this` === _tracer
         _tracer[op](...args);
       } else if (_lib && typeof _lib[op] === "function") {
         _lib[op](_tracer, ...args);
-      } else {
-        console.warn("TracerVM: unknown opcode", op);
       }
     });
-
     ctx.setProp(ctx.global, op, fn, false);
     fn.dispose();
   });
 }
 
 /* ------------------------------------------------------------------ */
-/* 5.  TracerVM                                                       */
+/* 6 · TracerVM                                                       */
 /* ------------------------------------------------------------------ */
 export default class TracerVM {
   constructor(onError) {
@@ -165,12 +207,24 @@ export default class TracerVM {
     this._queuedSrc = null;
     this.hasError = false;
     this.programHandle = null;
+    this.penHandle = null;
+    this.drawHandle = null;
   }
 
   async init() {
     const QuickJS = await newQuickJSWASMModuleFromVariant(variant);
     this.ctx = QuickJS.newContext();
     bindAllHostFns(this.ctx);
+
+    // ── evaluate the prelude as its own “module” ───────────────
+    const preRes = this.ctx.evalCode(PRELUDE, "prelude.js");
+    if (preRes.error) {
+      const msg = stringifyQJSError(this.ctx, preRes.error);
+      console.error("Prelude failed:", msg);
+      throw new Error("QuickJS prelude failed to load");
+    }
+    preRes.value?.dispose(); // (usually undefined)
+
     this._ready = true;
     if (this._queuedSrc !== null) {
       const s = this._queuedSrc;
@@ -179,14 +233,13 @@ export default class TracerVM {
     }
   }
 
-  loadSource(src, tracer) {
+  loadSource(src) {
     if (!this._ready) {
       this._queuedSrc = src;
       return;
     }
 
-    const wrapped = `globalThis.program=(function(){${buildProgramWrapper(src)}})();`;
-    const res = this.ctx.evalCode(wrapped);
+    const res = this.ctx.evalCode(buildProgramWrapper(src), "usercode.js");
     if (res.error) {
       this._enterError(stringifyQJSError(this.ctx, res.error));
       res.error.dispose();
@@ -196,18 +249,28 @@ export default class TracerVM {
     this.onError(null);
     this.programHandle?.dispose?.();
     this.programHandle = this.ctx.getProp(this.ctx.global, "program");
+
+    // fetch persistent handles to pen & draw (global objects)
+    this.penHandle?.dispose?.();
+    this.drawHandle?.dispose?.();
+    this.penHandle = this.ctx.getProp(this.ctx.global, "pen");
+    this.drawHandle = this.ctx.getProp(this.ctx.global, "draw");
   }
 
   tick(timeSeconds, tracer, lib = {}) {
     if (this.hasError || !this._ready || !this.programHandle) return;
     _tracer = tracer;
     _lib = lib;
+
     tracer._beginTick();
 
+    // ---- call user program -------------------------------------------
     const tMs = this.ctx.newNumber(timeSeconds);
     const r = this.ctx.callFunction(
       this.programHandle,
       this.ctx.undefined,
+      this.penHandle,
+      this.drawHandle,
       tMs,
     );
     tMs.dispose();
@@ -220,7 +283,7 @@ export default class TracerVM {
     }
 
     tracer._endTick();
-    _tracer = _lib = null; // reset globals
+    _tracer = _lib = null;
   }
 
   _enterError(msg) {
@@ -232,6 +295,8 @@ export default class TracerVM {
 
   dispose() {
     this.programHandle?.dispose?.();
+    this.penHandle?.dispose?.();
+    this.drawHandle?.dispose?.();
     this.ctx?.dispose();
   }
 }
