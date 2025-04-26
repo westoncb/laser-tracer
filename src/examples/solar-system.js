@@ -20,7 +20,6 @@ function drawCubeFrame(t) {
   const minorDiv = 5; // minor subdivisions inside each major square
   const spacingMaj = 1.0; // particle spacing for major lines
   const spacingMin = 1.5; // particle spacing for minor lines
-  const pulse = Math.sin(t * 0.5) * 0.5 + 0.5; // 0‥1 edge‑glow
 
   residue(3);
 
@@ -46,14 +45,14 @@ function drawCubeFrame(t) {
     moveRel(0, 0, -cubeSize);
 
     // ----- minor grid (thinner, dimmer) -----
-    size(7);
+    size(4);
     spacing(spacingMin);
     fuzz(3, 1);
     colorHSV(0.33, 0.3, 0.25); // muted green
     drawGrid(cubeSize, majorDiv * minorDiv, false, minorDiv);
 
     // ----- major grid (heavier, brighter) ---
-    size(5);
+    size(4);
     fuzz(3, 2);
     spacing(spacingMaj);
     colorHSV(0.33, 0.35, 0.45); // brighter green

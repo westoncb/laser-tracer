@@ -23,20 +23,17 @@ const FUZZ_N = 6;
 const FUZZ_SIG = 0.2;
 
 // ---------- PERSISTENT STATE -------------------------------------
-if (!globalThis.__lorenz) {
-  const pts = [];
-  for (let i = 0; i < N_PARTICLES; i++) {
-    // random seed near origin (no shift here – we integrate in native coords)
-    const r = Math.random() * SEED_RADIUS;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    pts.push({
-      x: r * Math.sin(phi) * Math.cos(theta),
-      y: r * Math.sin(phi) * Math.sin(theta),
-      z: r * Math.cos(phi),
-    });
-  }
-  globalThis.__lorenz = { pts };
+const pts = [];
+for (let i = 0; i < N_PARTICLES; i++) {
+  // random seed near origin (no shift here – we integrate in native coords)
+  const r = Math.random() * SEED_RADIUS;
+  const theta = Math.random() * Math.PI * 2;
+  const phi = Math.acos(2 * Math.random() - 1);
+  pts.push({
+    x: r * Math.sin(phi) * Math.cos(theta),
+    y: r * Math.sin(phi) * Math.sin(theta),
+    z: r * Math.cos(phi),
+  });
 }
 
 function lorenzStep(p, dt) {
@@ -56,8 +53,6 @@ function program(t) {
   size(PX_SIZE);
   residue(RESIDUE);
   fuzz(FUZZ_N, FUZZ_SIG);
-
-  const pts = globalThis.__lorenz.pts;
 
   for (let i = 0; i < pts.length; i++) {
     const p0 = pts[i];

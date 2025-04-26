@@ -1,4 +1,4 @@
-/* === Ripple Lace – dual‑source interference ================= */
+/* === dual‑source interference ================= */
 
 /* Quick HSV → hex */
 function hsv(h, s, v) {
