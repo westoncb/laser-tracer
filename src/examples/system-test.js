@@ -79,8 +79,11 @@ function program(pen, draw, t) {
   pen.yaw(spin);
   pen.pitch(rotY);
 
+  pen.colorHex(golden); // (keep brush settings outside loop)
   for (const [a, b] of EDGE) {
-    draw.line(VTX[a], VTX[b]); // uses pen.traceGap spacing
+    pen.moveTo(0, 0, 0);
+    pen.traceBy(VTX[a].x, VTX[a].y, VTX[a].z);
+    pen.traceBy(VTX[b].x - VTX[a].x, VTX[b].y - VTX[a].y, VTX[b].z - VTX[a].z);
   }
   pen.pop();
 
@@ -115,8 +118,23 @@ function program(pen, draw, t) {
 
   /* === 4 · live timestamp text ================================ */
   pen.fuzz(0); // crisp text
-  pen.dotSize(3);
+  pen.dotSize(12);
+  pen.residue(0.1);
+  pen.traceGap(0.1);
   const txt = `t = ${t.toFixed(2)} s`;
   const scroll = ((t * 8) % 40) - 20; // scroll left→right
-  draw.text(txt, { x: -18, y: -28 + scroll, z: 0 }, 3);
+  draw.text(txt, { x: -28 + scroll * 10, y: -18, z: 0 }, 3);
 }
+
+/*
+  roll,pitch,yaw need to be global rather than on pen, same with push,pop
+  moveBy should probably just be translate
+
+  frame.roll, frame.translate, frame.push, etc.
+
+  draw.line(from, to)
+  draw.point(pos)
+  etc
+
+  brush.size, brush.stipple, brush.fuzz, etc.
+*/
