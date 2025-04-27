@@ -9,7 +9,87 @@
    4.  A scrolling timestamp label to prove text & colour helpers
 ================================================================= */
 
-const golden = 0xffcc33;
+const golden = 0xffcc33; /* ================================================================
+   5-Wave Quasi-Crystal · line-mesh variant
+   ---------------------------------------------------------------
+   • 64×64 grid, linked with horizontal & vertical traces
+   • pen.traceBy() lets orientation (pen.yaw) propagate automatically
+================================================================= */
+
+const GRID = 60; // cells per side  (even ⇒ no centre seam)
+const STEP = 1.2; // spacing (world units)
+const KLEN = 0.35; // wave-vector length
+const AMP = 8; // vertical amplitude
+const GAP = 0.4; // particle spacing along stroke
+const SIZE = 6; // sprite size
+const RESID = 1; // lifetime (s)
+
+/* ---------- helpers -------------------------------------------- */
+function wave5(px, pz, θ) {
+  let a = 0;
+  for (let k = 0; k < 5; k++) {
+    const φ = θ + (k * 2 * Math.PI) / 5;
+    a += Math.cos(px * Math.cos(φ) * KLEN + pz * Math.sin(φ) * KLEN);
+  }
+  return a / 5; // [-1,1]
+}
+
+/* --------------------------------------------------------------- */
+function program(pen, draw, style, t) {
+  /* global style ------------------------------------------------ */
+  style.dotSize(SIZE);
+  style.residue(RESID);
+  style.fuzz(1, 0.1);
+  style.traceGap(GAP);
+
+  /* orient & lift the slab ------------------------------------- */
+  pen.push();
+  pen.moveBy(0, 0, 40);
+  pen.yaw(t * 12); // slow spin
+
+  const θ = t * 0.4;
+  const half = (GRID - 1) * STEP * 0.5;
+
+  /* ---- draw horizontal strips -------------------------------- */
+  for (let z = 0; z < GRID; z++) {
+    // start each row with an absolute move, then relative traces
+    pen.push();
+    const pz = (z - (GRID - 1) / 2) * STEP;
+    const px0 = -half;
+    let A0 = wave5(px0, pz, θ);
+    pen.moveBy(px0, A0 * AMP, pz);
+
+    for (let x = 1; x < GRID; x++) {
+      const px = (x - (GRID - 1) / 2) * STEP;
+      const A = wave5(px, pz, θ);
+      pen.colorViridis(Math.abs(A) / 1.5);
+      pen.traceBy(STEP, (A - A0) * AMP, 0); // relative Δx, Δy, Δz
+      A0 = A;
+    }
+    pen.pop();
+  }
+
+  /* ---- draw vertical strips ---------------------------------- */
+  for (let x = 0; x < GRID; x++) {
+    pen.push();
+    const px = (x - (GRID - 1) / 2) * STEP;
+    const pz0 = -half;
+    let A0 = wave5(px, pz0, θ);
+    pen.moveBy(px, A0 * AMP, pz0);
+
+    for (let z = 1; z < GRID; z++) {
+      const pz = (z - (GRID - 1) / 2) * STEP;
+      const A = wave5(px, pz, θ);
+      style.colorViridis(Math.abs(A));
+      pen.traceBy(0, (A - A0) * AMP, STEP); // Δx, Δy, Δz
+      A0 = A;
+    }
+    pen.pop();
+  }
+
+  pen.pop(); // restore world frame
+}
+
 const magenta = 0xff44ff;
 const cyan = 0x44ddff;
 
@@ -65,21 +145,21 @@ const EDGE = [
 ];
 
 /* -------------------------------------------------------------- */
-function program(pen, draw, t) {
+function program(pen, draw, style, t) {
   /* === global brush =========================================== */
-  pen.traceGap(0.4);
-  pen.dotSize(6);
-  pen.residue(4);
+  style.traceGap(0.4);
+  style.dotSize(6);
+  style.residue(4);
 
   /* === 1 · spinning icosahedron (absolute, stateless) ========= */
-  pen.colorHex(golden);
+  style.colorHex(golden);
   const spin = t * 12; // deg/s
   const rotY = Math.cos(t * 0.5) * 20;
   pen.push();
   pen.yaw(spin);
   pen.pitch(rotY);
 
-  pen.colorHex(golden); // (keep brush settings outside loop)
+  style.colorHex(golden); // (keep brush settings outside loop)
   for (const [a, b] of EDGE) {
     pen.moveTo(0, 0, 0);
     pen.traceBy(VTX[a].x, VTX[a].y, VTX[a].z);
@@ -88,9 +168,9 @@ function program(pen, draw, t) {
   pen.pop();
 
   /* === 2 · local “propeller” using traceBy + yaw ============== */
-  pen.colorHex(magenta);
-  pen.traceGap(0.25);
-  pen.dotSize(4);
+  style.colorHex(magenta);
+  style.traceGap(0.25);
+  style.dotSize(4);
 
   pen.push();
   pen.moveTo(0, 0, 0); // hub at origin
@@ -110,17 +190,17 @@ function program(pen, draw, t) {
     y: 18 * Math.sin(t * 0.9),
     z: 12 * Math.sin(t * 0.6),
   };
-  pen.colorHex(cyan);
-  pen.dotSize(10);
-  pen.fuzz(4, 0.3, 0.3, 0.3);
+  style.colorHex(cyan);
+  style.dotSize(10);
+  style.fuzz(4, 0.3, 0.3, 0.3);
 
   draw.point(comet);
 
   /* === 4 · live timestamp text ================================ */
-  pen.fuzz(0); // crisp text
-  pen.dotSize(12);
-  pen.residue(0.1);
-  pen.traceGap(0.1);
+  style.fuzz(0); // crisp text
+  style.dotSize(12);
+  style.residue(0.1);
+  style.traceGap(0.1);
   const txt = `t = ${t.toFixed(2)} s`;
   const scroll = ((t * 8) % 40) - 20; // scroll left→right
   draw.text(txt, { x: -28 + scroll * 10, y: -18, z: 0 }, 3);
