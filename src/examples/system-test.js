@@ -65,21 +65,21 @@ const EDGE = [
 ];
 
 /* -------------------------------------------------------------- */
-function program(pen, draw, style, t) {
+function program(pen, draw, t) {
   /* === global brush =========================================== */
-  style.traceGap(0.4);
-  style.dotSize(6);
-  style.residue(4);
+  pen.traceGap(0.4);
+  pen.dotSize(6);
+  pen.residue(4);
 
   /* === 1 · spinning icosahedron (absolute, stateless) ========= */
-  style.colorHex(golden);
+  pen.colorHex(golden);
   const spin = t * 12; // deg/s
   const rotY = Math.cos(t * 0.5) * 20;
   pen.push();
   pen.yaw(spin);
   pen.pitch(rotY);
 
-  style.colorHex(golden); // (keep brush settings outside loop)
+  pen.colorHex(golden); // (keep brush settings outside loop)
   for (const [a, b] of EDGE) {
     pen.moveTo(0, 0, 0);
     pen.traceBy(VTX[a].x, VTX[a].y, VTX[a].z);
@@ -88,9 +88,9 @@ function program(pen, draw, style, t) {
   pen.pop();
 
   /* === 2 · local “propeller” using traceBy + yaw ============== */
-  style.colorHex(magenta);
-  style.traceGap(0.25);
-  style.dotSize(4);
+  pen.colorHex(magenta);
+  pen.traceGap(0.25);
+  pen.dotSize(4);
 
   pen.push();
   pen.moveTo(0, 0, 0); // hub at origin
@@ -110,17 +110,17 @@ function program(pen, draw, style, t) {
     y: 18 * Math.sin(t * 0.9),
     z: 12 * Math.sin(t * 0.6),
   };
-  style.colorHex(cyan);
-  style.dotSize(10);
-  style.fuzz(4, 0.3, 0.3, 0.3);
+  pen.colorHex(cyan);
+  pen.dotSize(10);
+  pen.fuzz(4, 0.3, 0.3, 0.3);
 
   draw.point(comet);
 
   /* === 4 · live timestamp text ================================ */
-  style.fuzz(0); // crisp text
-  style.dotSize(12);
-  style.residue(0.1);
-  style.traceGap(0.1);
+  pen.fuzz(0); // crisp text
+  pen.dotSize(12);
+  pen.residue(0.1);
+  pen.traceGap(0.1);
   const txt = `t = ${t.toFixed(2)} s`;
   const scroll = ((t * 8) % 40) - 20; // scroll left→right
   draw.text(txt, { x: -28 + scroll * 10, y: -18, z: 0 }, 3);

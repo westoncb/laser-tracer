@@ -24,12 +24,12 @@ function wave5(px, pz, θ) {
 }
 
 /* --------------------------------------------------------------- */
-function program(pen, draw, style, t) {
+function program(pen, draw, t) {
   /* global brush ------------------------------------------------ */
-  style.dotSize(SIZE);
-  style.residue(RESID);
-  style.fuzz(1, 0.1);
-  style.traceGap(GAP);
+  pen.dotSize(SIZE);
+  pen.residue(RESID);
+  pen.fuzz(1, 0.1);
+  pen.traceGap(GAP);
 
   /* orient & lift the slab ------------------------------------- */
   pen.push();
@@ -51,7 +51,7 @@ function program(pen, draw, style, t) {
     for (let x = 1; x < GRID; x++) {
       const px = (x - (GRID - 1) / 2) * STEP;
       const A = wave5(px, pz, θ);
-      style.colorViridis(Math.abs(A) / 1.5);
+      pen.colorViridis(Math.abs(A) / 1.5);
       pen.traceBy(STEP, (A - A0) * AMP, 0); // relative Δx, Δy, Δz
       A0 = A;
     }
@@ -69,7 +69,7 @@ function program(pen, draw, style, t) {
     for (let z = 1; z < GRID; z++) {
       const pz = (z - (GRID - 1) / 2) * STEP;
       const A = wave5(px, pz, θ);
-      style.colorViridis(Math.abs(A));
+      pen.colorViridis(Math.abs(A));
       pen.traceBy(0, (A - A0) * AMP, STEP); // Δx, Δy, Δz
       A0 = A;
     }

@@ -26,6 +26,16 @@ const pen = {
   pitch: d        => _h.pitch(d),
   roll : d        => _h.roll(d),
 
+  /* brush setters (instant; no local shadow state) */
+  dotSize : px                    => { _h.dotSize(px); return pen; },
+  traceGap: d                     => { _h.traceGap(d); return pen; },
+  residue : s                     => { _h.residue(s); return pen; },
+  fuzz    : (n=0,sx=4,sy=sx,sz=sx)=> { _h.fuzz(n|0,+sx,+sy,+sz); return pen; },
+  colorHex: hex                   => { _h.colorHex(hex>>>0); return pen; },
+  colorRGB: (r,g,b)               => { _h.colorRGB(r,g,b); return pen; },
+  colorHSV: (h,s,v)               => { _h.colorHSV(h,s,v); return pen; },
+  colorViridis:t                  => { _h.colorViridis(t); return pen; },
+  colorCubehelix:(t,st=.5,rot=-1.5,g=1)=>{ _h.colorCubehelix(t,st,rot,g); return pen; },
 
   /* raw motion & strokes */
   moveTo :(x,y,z)     => _h.moveTo(x,y,z),
@@ -40,18 +50,8 @@ const pen = {
     _h.sweepLocal(path, prof, close|0)
 };
 
-/* ────────────── style properties ───────────────────── */
-const style = {
-  dotSize : px                    => _h.dotSize(px),
-  traceGap: d                     => _h.traceGap(d),
-  residue : s                     => _h.residue(s),
-  fuzz    : (n=0,sx=4,sy=sx,sz=sx)=> _h.fuzz(n|0,+sx,+sy,+sz),
-  colorHex: hex                   => _h.colorHex(hex>>>0),
-  colorRGB: (r,g,b)               => _h.colorRGB(r,g,b),
-  colorHSV: (h,s,v)               => _h.colorHSV(h,s,v),
-  colorViridis:t                  => _h.colorViridis(t),
-  colorCubehelix:(t,st=.5,rot=-1.5,g=1)=>_h.colorCubehelix(t,st,rot,g),
-}
+/* make pen visible inside QuickJS for debugging/REPL */
+globalThis.pen = pen;
 
 /* ────────────── stateless draw helpers ─────────────────────────── */
 const draw = {
@@ -78,10 +78,7 @@ const draw = {
 const setBGColor = hex => _h.setBGColor(hex);
 
 
-/* make visible inside QuickJS for debugging/REPL */
-globalThis.pen = pen;
 globalThis.draw = draw;
-globalThis.style = style;
 `; // ← end of String.raw
 
 function buildProgramWrapper(userSource) {
@@ -191,7 +188,6 @@ export default class TracerVM {
     this.programHandle = null;
     this.penHandle = null;
     this.drawHandle = null;
-    this.styleHandle = null;
   }
 
   async init() {
@@ -237,10 +233,8 @@ export default class TracerVM {
     // fetch persistent handles to pen & draw (global objects)
     this.penHandle?.dispose?.();
     this.drawHandle?.dispose?.();
-    this.styleHandle?.dispose?.();
     this.penHandle = this.ctx.getProp(this.ctx.global, "pen");
     this.drawHandle = this.ctx.getProp(this.ctx.global, "draw");
-    this.styleHandle = this.ctx.getProp(this.ctx.global, "style");
 
     res.value.dispose();
   }
@@ -259,7 +253,6 @@ export default class TracerVM {
       this.ctx.undefined,
       this.penHandle,
       this.drawHandle,
-      this.styleHandle,
       tMs,
     );
     tMs.dispose();

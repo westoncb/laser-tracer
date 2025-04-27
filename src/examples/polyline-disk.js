@@ -42,21 +42,21 @@ for (let sIdx = 0; sIdx < N_SPOKES; sIdx++) {
 }
 
 /* --------------------------------------------------------------- */
-function program(pen, draw, style, t) {
+function program(pen, draw, t) {
   /* global brush ------------------------------------------------ */
-  style.dotSize(DOT);
-  style.residue(RESID);
-  style.traceGap(GAP);
-  style.fuzz(0);
+  pen.dotSize(DOT);
+  pen.residue(RESID);
+  pen.traceGap(GAP);
+  pen.fuzz(0);
 
   /* === WORLD-SPACE RINGS ====================================== */
-  style.colorHex(0x3355ff);
+  pen.colorHex(0x3355ff);
   for (const ring of rings) draw.polyline(ring, true); // ignores pen orientation
 
   /* === LOCAL-SPACE SPOKES (rotating) ========================== */
   pen.push();
   pen.yaw(t * 30); // every spoke inherits yaw
-  style.colorViridis((t * 0.08) % 1);
+  pen.colorViridis((t * 0.08) % 1);
 
   for (const spoke of spokes) pen.polyline(spoke, false); // local version
 
