@@ -87,8 +87,32 @@ function cubehelixHex(t, start = 0.5, rot = -1.5, gamma = 1) {
   return ((r * 255) << 16) | ((g * 255) << 8) | (b * 255) | 0;
 }
 
+/* --- basic utility ---------------------------------------------- */
+function _frenetYawPitch(tx, ty, tz) {
+  const yaw = (Math.atan2(tx, tz) * 180) / Math.PI; // around Y
+  const pitch = (-Math.atan2(ty, Math.hypot(tx, tz)) * 180) / Math.PI; // around X
+  return [yaw, pitch];
+}
+
+/* --- draws one profile slice ------------------------------------ */
+function _drawProfile(tracer, profile, close) {
+  // local XY plane – use traceBy deltas
+  const p0 = profile[0];
+  tracer.moveBy(p0.x, p0.y, p0.z);
+  for (let i = 1; i < profile.length; i++) {
+    const a = profile[i - 1],
+      b = profile[i];
+    tracer.traceBy(b.x - a.x, b.y - a.y, b.z - a.z);
+  }
+  if (close && profile.length > 2) {
+    const a = profile[profile.length - 1],
+      b = profile[0];
+    tracer.traceBy(b.x - a.x, b.y - a.y, b.z - a.z);
+  }
+}
+
 /* ------------------------------------------------------------------ */
-/* Public API – functions the PRELUDE emits as op names               */
+/* Public API                                                         */
 /* ------------------------------------------------------------------ */
 export default {
   /** colourHex(tracer, 0xff00ff) */
@@ -113,12 +137,145 @@ export default {
 
   /** colourCubehelix(tracer, t, start?, rot?, gamma?) */
   colorCubehelix(tracer, t, start = 0.5, rot = -1.5, gamma = 1) {
-    const color = cubehelixHex(t, start, rot, gamma);
-    tracer.color(cubehelixHex(color));
-    return color;
+    const hex = cubehelixHex(t, start, rot, gamma);
+    tracer.color(hex);
   },
 
   setBGColor(tracer, hex) {
     this.renderer.setClearColor(hex);
+  },
+
+  /* ==================================================================
+     POLYLINE HELPERS
+     ------------------------------------------------------------------
+     • polylineLocal → vertices interpreted in CURRENT pen frame
+     • polylineWorld → vertices are absolute world coordinates
+     • close=true    → last→first edge is drawn automatically
+     • Each helper isolates its work with push/pop so it never drifts
+       the tracer’s cursor or brush state.
+  ================================================================== */
+  polylineLocal(tracer, pts, close = false) {
+    if (!pts || pts.length === 0) return;
+
+    tracer.push();
+
+    // move pen to first vertex (local coords → moveBy)
+    const p0 = pts[0];
+    tracer.moveBy(p0.x, p0.y, p0.z);
+
+    // trace edges with LOCAL deltas
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1],
+        b = pts[i];
+      tracer.traceBy(b.x - a.x, b.y - a.y, b.z - a.z);
+    }
+
+    if (close && pts.length > 2) {
+      const a = pts[pts.length - 1],
+        b = pts[0];
+      tracer.traceBy(b.x - a.x, b.y - a.y, b.z - a.z);
+    }
+
+    tracer.pop();
+  },
+
+  polylineWorld(tracer, pts, close = false) {
+    if (!pts || pts.length === 0) return;
+
+    tracer.push();
+
+    // move pen to first vertex (absolute → moveTo)
+    const p0 = pts[0];
+    tracer.moveTo(p0.x, p0.y, p0.z);
+
+    // trace edges with absolute endpoints
+    for (let i = 1; i < pts.length; i++) {
+      const b = pts[i];
+      tracer.traceTo(b.x, b.y, b.z);
+    }
+
+    if (close && pts.length > 2) {
+      const b = pts[0];
+      tracer.traceTo(b.x, b.y, b.z);
+    }
+
+    tracer.pop();
+  },
+
+  /* ==================================================================
+     SWEEP HELPERS
+     ------------------------------------------------------------------
+     sweepLocal : profile is swept along a path whose vertices are in
+                  the *current pen frame* (inherits yaw/pitch/roll).
+
+     sweepWorld : path vertices are absolute world coordinates; sweep
+                  ignores any prior pen orientation.
+
+     Both accept `closePath` to splice last→first tangent for loops.
+  ================================================================== */
+
+  /* ----------------------------------------------------------------
+     LOCAL  – inherits current pen orientation
+  -----------------------------------------------------------------*/
+  sweepLocal(tracer, path, profile, closePath = false) {
+    if (!path || path.length < 2 || !profile || profile.length < 2) return;
+
+    // pre-compute tangents
+    const tang = [];
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i],
+        b = path[i + 1];
+      tang.push({ x: b.x - a.x, y: b.y - a.y, z: b.z - a.z });
+    }
+    if (closePath) tang.push(tang[0]);
+
+    tracer.push(); // isolate sweep
+    for (let i = 0; i < path.length; i++) {
+      const P = path[i];
+      const t = tang[i < tang.length ? i : i - 1];
+
+      tracer.push(); // per-slice transform
+      tracer.moveBy(P.x, P.y, P.z);
+
+      // orient slice: yaw about Y, pitch about X
+      const [yaw, pitch] = _frenetYawPitch(t.x, t.y, t.z);
+      tracer.yaw(yaw);
+      tracer.pitch(pitch);
+
+      _drawProfile(tracer, profile, true); // closed profile
+      tracer.pop();
+    }
+    tracer.pop();
+  },
+
+  /* ----------------------------------------------------------------
+     WORLD  – path points are absolute; ignores existing pen rot
+  -----------------------------------------------------------------*/
+  sweepWorld(tracer, path, profile, closePath = false) {
+    if (!path || path.length < 2 || !profile || profile.length < 2) return;
+
+    // compute tangents
+    const tang = [];
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i],
+        b = path[i + 1];
+      tang.push({ x: b.x - a.x, y: b.y - a.y, z: b.z - a.z });
+    }
+    if (closePath) tang.push(tang[0]);
+
+    for (let i = 0; i < path.length; i++) {
+      const P = path[i];
+      const t = tang[i < tang.length ? i : i - 1];
+
+      tracer.push();
+      tracer.moveTo(P.x, P.y, P.z); // absolute anchor
+
+      const [yaw, pitch] = _frenetYawPitch(t.x, t.y, t.z);
+      tracer.yaw(yaw);
+      tracer.pitch(pitch);
+
+      _drawProfile(tracer, profile, true);
+      tracer.pop();
+    }
   },
 };

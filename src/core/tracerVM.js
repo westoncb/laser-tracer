@@ -8,62 +8,52 @@ const PRELUDE_VERSION = 3;
 
 const PRELUDE = String.raw`
 // ==== Laser-Tracer PRELUDE (v${PRELUDE_VERSION}) ====================
-// Creates a *pen* object backed by host opcodes and a stateless *draw*
-// helper.
+// Single-source API:  pen.*  (raw turtle)  +  draw.* (stateless helpers)
 
-// ----- host-bridged opcodes ----------------------------------------
-const _h = globalThis; // shorthand
+/* ---- host opcodes on globalThis ---------------------------------- */
+const _h = globalThis;
 
-// ─────────────── pen object ───────────────
+/* ---- wrappers needed by draw.text ------------------------------- */
+const drawText    = (t,x,y,z,h=4)=>_h.drawText(t,x,y,z,h);
+const drawTextRel = (t,dx,dy,dz,h=4)=>_h.drawTextRel(t,dx,dy,dz,h);
+
+/* ────────────── pen: the only stateful object ───────────────────── */
 const pen = {
-  /* stack & orientation */
-  push : () => _h.push(),
-  pop  : () => _h.pop(),
-  yaw  : d => _h.yaw(d),
-  pitch: d => _h.pitch(d),
-  roll : d => _h.roll(d),
+  /* transform stack & orientation */
+  push : ()       => _h.push(),
+  pop  : ()       => _h.pop(),
+  yaw  : d        => _h.yaw(d),
+  pitch: d        => _h.pitch(d),
+  roll : d        => _h.roll(d),
 
-  dotSize   : px => _h.dotSize(px),
-  traceGap  : d  => _h.traceGap(d),
-  residue   : s  => _h.residue(s),
-  fuzz      : (n=0,sx=4,sy=sx,sz=sx)=>_h.fuzz(n|0,+sx,+sy,+sz),
-  colorHex  : hex => _h.colorHex(hex >>> 0),
+  /* brush setters (instant; no local shadow state) */
+  dotSize : px                    => _h.dotSize(px),
+  traceGap: d                     => _h.traceGap(d),
+  residue : s                     => _h.residue(s),
+  fuzz    : (n=0,sx=4,sy=sx,sz=sx)=> _h.fuzz(n|0,+sx,+sy,+sz),
+  colorHex: hex                   => _h.colorHex(hex>>>0),
+  colorRGB: (r,g,b)               => _h.colorRGB(r,g,b),
+  colorHSV: (h,s,v)               => _h.colorHSV(h,s,v),
+  colorViridis:t                  => _h.colorViridis(t),
+  colorCubehelix:(t,st=.5,rot=-1.5,g=1)=>_h.colorCubehelix(t,st,rot,g),
 
-
-  /* motion & strokes */
-  moveTo : (x,y,z)    => _h.moveTo(x,y,z),
-  moveBy : (dx,dy,dz) => _h.moveBy(dx,dy,dz),
-  traceTo: (x,y,z)    => _h.traceTo(x,y,z),
-  traceBy: (dx,dy,dz) => _h.traceBy(dx,dy,dz),
+  /* raw motion & strokes */
+  moveTo :(x,y,z)     => _h.moveTo(x,y,z),
+  moveBy :(dx,dy,dz)  => _h.moveBy(dx,dy,dz),
+  traceTo:(x,y,z)     => _h.traceTo(x,y,z),
+  traceBy:(dx,dy,dz)  => _h.traceBy(dx,dy,dz),
   dot    : ()         => _h.dot(),
   dotAt  : (x,y,z)    => _h.dotAt(x,y,z),
 
-  /* mutable brush settings (treated as data) */
-  settings : {
-    dotSize  : 5,
-    traceGap : 1,
-    residue  : 1,
-    fuzz     : { count:0, sx:0, sy:0, sz:0 },
-    color    : 0xaa88ff,
-  },
-
-  /* colour helpers still convenient */
-  colorRGB       : (r,g,b)                => _h.colorRGB(r,g,b),
-  colorHSV       : (h,s,v)                => _h.colorHSV(h,s,v),
-  colorViridis   : t                      => _h.colorViridis(t),
-  colorCubehelix : (t,st=.5,rot=-1.5,g=1) => _h.colorCubehelix(t,st,rot,g),
-  colorHex       : hex                    => { pen.settings.color = hex>>>0; },
-  color       : hex                    => { pen.settings.color = hex>>>0; },
-
-  /* --- text helpers ------------------------------------------------- */
-  drawText    : (t,x,y,z,h=4)    => globalThis.drawText(t,x,y,z,h),
-  drawTextRel : (t,dx,dy,dz,h=4) => globalThis.drawTextRel(t,dx,dy,dz,h),
+  polyline: (pts, close=false)=> _h.polylineLocal(pts, close|0),
+  sweep: (path, prof, close=false)=>
+    _h.sweepLocal(path, prof, close|0)
 };
 
-// expose pen for ad-hoc debugging *inside* QuickJS
+/* make pen visible inside QuickJS for debugging/REPL */
 globalThis.pen = pen;
 
-// ─────────────── draw helpers (stateless) ───────────────
+/* ────────────── stateless draw helpers ─────────────────────────── */
 const draw = {
   line(p0, p1) {
     pen.push();
@@ -71,43 +61,25 @@ const draw = {
     pen.traceTo(p1.x, p1.y, p1.z);
     pen.pop();
   },
-  polyline(pts) {
-    if (!pts.length) return;
-    pen.push();
-    pen.moveTo(pts[0].x, pts[0].y, pts[0].z);
-    for (let i = 1; i < pts.length; i++)
-      pen.traceTo(pts[i].x, pts[i].y, pts[i].z);
-    pen.pop();
-  },
   point(p) {
-    pen.push(); pen.moveTo(p.x,p.y,p.z); pen.dot(); pen.pop();
+    pen.push(); pen.moveTo(p.x, p.y, p.z); pen.dot(); pen.pop();
   },
   text(str, p, h = 4) {
-    pen.push(); pen.moveTo(p.x,p.y,p.z);
-    drawText(str, 0, 0, 0, h);
+    pen.push();
+    drawText(str, p.x, p.y, p.z, h);
     pen.pop();
   },
+  polyline: (pts, close=false)=> _h.polylineWorld(pts, close|0),
+  sweep: (path, prof, close=false)=>
+    _h.sweepWorld(path, prof, close|0)
 };
-
-globalThis.draw = draw;
 
 // ---- colour utilities (kept from v2) ------------------------------
 const setBGColor = hex => _h.setBGColor(hex);
 
-// t ∈ [0,1]  ·  start ∈ [0,3]  (0 = red, 1 = green, 2 = blue)
-function cubehelixHex(t, start = 0.5, rot = -1.5, gamma = 1) {
-  t = Math.pow(Math.max(0, Math.min(1, t)), gamma);
-  const phi = 2 * Math.PI * (start / 3 + rot * t);
-  const amp = 0.5 * t * (1 - t);
-  let r = t + amp * (-0.14861 * Math.cos(phi) + 1.78277 * Math.sin(phi));
-  let g = t + amp * (-0.29227 * Math.cos(phi) - 0.90649 * Math.sin(phi));
-  let b = t + amp * (+1.97294 * Math.cos(phi));
-  r = Math.min(1, Math.max(0, r));
-  g = Math.min(1, Math.max(0, g));
-  b = Math.min(1, Math.max(0, b));
-  return ((r * 255) << 16) | ((g * 255) << 8) | (b * 255) | 0;
-}
-`;
+
+globalThis.draw = draw;
+`; // ← end of String.raw
 
 function buildProgramWrapper(userSource) {
   return (
@@ -141,8 +113,10 @@ function stringifyQJSError(ctx, errHandle) {
 function makeDecoders(ctx) {
   const N = (h) => ctx.getNumber(h);
   const S = (h) => ctx.getString(h);
+  const D = (h) => ctx.dump(h);
+
   return {
-    // motion & pen
+    /* ── motion & pen ─────────────────────────────────────────── */
     moveTo: [N, N, N],
     moveBy: [N, N, N],
     traceTo: [N, N, N],
@@ -157,7 +131,7 @@ function makeDecoders(ctx) {
     drawText: [S, N, N, N, N],
     drawTextRel: [S, N, N, N, N],
 
-    // colour helpers
+    /* ── colour helpers ───────────────────────────────────────── */
     colorRGB: [N, N, N],
     colorHSV: [N, N, N],
     colorViridis: [N],
@@ -165,12 +139,17 @@ function makeDecoders(ctx) {
     colorHex: [N],
     setBGColor: [N],
 
-    // pen settings
+    /* ── brush setters ───────────────────────────────────────── */
     dotSize: [N],
     traceGap: [N],
     residue: [N],
     fuzz: [N, N, N, N],
-    colorHex: [N],
+
+    /* ── new high-level geometry ops ─────────────────────────── */
+    polylineLocal: [D, N], // (ptsArray, closeBool?)
+    polylineWorld: [D, N],
+    sweepLocal: [D, D, N], // (path, prof, closeFlag)
+    sweepWorld: [D, D, N],
   };
 }
 
@@ -223,7 +202,7 @@ export default class TracerVM {
       console.error("Prelude failed:", msg);
       throw new Error("QuickJS prelude failed to load");
     }
-    preRes.value?.dispose(); // (usually undefined)
+    preRes.value?.dispose();
 
     this._ready = true;
     if (this._queuedSrc !== null) {
@@ -245,6 +224,7 @@ export default class TracerVM {
       res.error.dispose();
       return;
     }
+
     this.hasError = false;
     this.onError(null);
     this.programHandle?.dispose?.();
@@ -255,6 +235,8 @@ export default class TracerVM {
     this.drawHandle?.dispose?.();
     this.penHandle = this.ctx.getProp(this.ctx.global, "pen");
     this.drawHandle = this.ctx.getProp(this.ctx.global, "draw");
+
+    res.value.dispose();
   }
 
   tick(timeSeconds, tracer, lib = {}) {
