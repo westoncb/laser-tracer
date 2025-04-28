@@ -1,10 +1,4 @@
-// tracerLib.js  –  colour + utility helpers for Laser-Tracer
-// ==========================================================
-// Each function below is invoked by TracerVM like
-//     lib[colorRGB](tracer, r, g, b)
-// so its *first* argument is ALWAYS the active tracer object.
-// The tracer object must expose a `.color(hex24)` method that
-// takes a 24-bit 0xRRGGBB integer.
+import * as THREE from "three";
 
 // ---------- low-level ------------------------------------------------
 const clampByte = (x) => Math.max(0, Math.min(255, Math.round(x * 255)));
@@ -114,36 +108,42 @@ function _drawProfile(tracer, profile, close) {
 /* ------------------------------------------------------------------ */
 /* Public API                                                         */
 /* ------------------------------------------------------------------ */
-export default {
-  /** colourHex(tracer, 0xff00ff) */
+export default class TracerLib {
+  constructor(renderer, camera, orbitControls) {
+    this.renderer = renderer;
+    this.camera = camera;
+    this.orbitControls = orbitControls;
+  }
+
+  /** colorHex(tracer, 0xff00ff) */
   colorHex(tracer, hex) {
     tracer.color(hex >>> 0);
-  },
+  }
 
-  /** colourRGB(tracer, r,g,b)  with r,g,b ∈ [0,1] */
+  /** colorRGB(tracer, r,g,b)  with r,g,b ∈ [0,1] */
   colorRGB(tracer, r, g, b) {
     tracer.color(rgb2hex(r, g, b));
-  },
+  }
 
-  /** colourHSV(tracer, h,s,v)  with h,s,v ∈ [0,1] */
+  /** colorHSV(tracer, h,s,v)  with h,s,v ∈ [0,1] */
   colorHSV(tracer, h, s, v) {
     tracer.color(hsv2hex(h, s, v));
-  },
+  }
 
-  /** colourViridis(tracer, t) with t ∈ [0,1] */
+  /** colorViridis(tracer, t) with t ∈ [0,1] */
   colorViridis(tracer, t) {
     tracer.color(viridisHex(t));
-  },
+  }
 
-  /** colourCubehelix(tracer, t, start?, rot?, gamma?) */
+  /** colorCubehelix(tracer, t, start?, rot?, gamma?) */
   colorCubehelix(tracer, t, start = 0.5, rot = -1.5, gamma = 1) {
     const hex = cubehelixHex(t, start, rot, gamma);
     tracer.color(hex);
-  },
+  }
 
   setBGColor(tracer, hex) {
     this.renderer.setClearColor(hex);
-  },
+  }
 
   /* ==================================================================
      POLYLINE HELPERS
@@ -152,7 +152,7 @@ export default {
      • polylineWorld → vertices are absolute world coordinates
      • close=true    → last→first edge is drawn automatically
      • Each helper isolates its work with push/pop so it never drifts
-       the tracer’s cursor or brush state.
+       the tracer's cursor or brush state.
   ================================================================== */
   polylineLocal(tracer, pts, close = false) {
     if (!pts || pts.length === 0) return;
@@ -177,7 +177,7 @@ export default {
     }
 
     tracer.pop();
-  },
+  }
 
   polylineWorld(tracer, pts, close = false) {
     if (!pts || pts.length === 0) return;
@@ -200,7 +200,7 @@ export default {
     }
 
     tracer.pop();
-  },
+  }
 
   /* ==================================================================
      SWEEP HELPERS
@@ -246,7 +246,7 @@ export default {
       tracer.pop();
     }
     tracer.pop();
-  },
+  }
 
   /* ----------------------------------------------------------------
      WORLD  – path points are absolute; ignores existing pen rot
@@ -277,5 +277,56 @@ export default {
       _drawProfile(tracer, profile, true);
       tracer.pop();
     }
-  },
-};
+  }
+
+  /**
+   * Immediately position the camera and align OrbitControls.
+   * Pass:
+   *   pos   – {x,y,z} (world space)
+   *   look  – {x,y,z} (world space)  (default: {0,0,0})
+   */
+  setCamera(tracer, posX, posY, posZ, lookX, lookY, lookZ) {
+    if (!this.camera) return console.warn("TracerLib: camera not initialised");
+    this.externalCameraControl = true;
+
+    this.camera.position.set(posX, posY, posZ);
+    this.camera.lookAt(lookX, lookY, lookZ);
+
+    if (this.orbitControls) {
+      this.orbitControls.target.set(lookX, lookY, lookZ);
+      this.orbitControls.update(); // keep damping in sync
+    }
+  }
+
+  /**
+   * Convenience polar-orbit wrapper.
+   *   center   – {x,y,z}
+   *   radius   – number
+   *   azDeg    – azimuth in degrees (0° = +X, 90° = +Z)
+   *   elDeg    – elevation in degrees (0° = horizon, +90° = pole)
+   */
+  orbitCamera(tracer, center, radius, azDeg, elDeg) {
+    const az = THREE.MathUtils.degToRad(azDeg);
+    const el = THREE.MathUtils.degToRad(elDeg);
+
+    const rCos = radius * Math.cos(el);
+    const pos = {
+      x: center.x + rCos * Math.cos(az),
+      y: center.y + radius * Math.sin(el),
+      z: center.z + rCos * Math.sin(az),
+    };
+
+    this.setCamera(tracer, pos.x, pos.y, pos.z, center.x, center.y, center.z);
+  }
+
+  /*───────────────────────────────────────────────────────────*/
+  /* Relinquish control when user drags the mouse   */
+  /*───────────────────────────────────────────────────────────*/
+  tickControls() {
+    // Call once per frame from your main render loop
+    if (this.orbitControls && !this.externalCameraControl) {
+      this.orbitControls.update(); // regular user-driven orbiting
+    }
+    this.externalCameraControl = false; // reset for next script frame
+  }
+}

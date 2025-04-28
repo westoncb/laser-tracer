@@ -154,11 +154,6 @@ class LaserTracer {
     this.frame.pos.copy(_vIn);
   }
 
-  dotAt(x, y, z) {
-    _vIn.set(x, y, z);
-    this._spawnWithFuzz(_vIn);
-  }
-
   /*──────────────────── Pen motion (relative) ───────────────────*/
   moveBy(dx, dy, dz) {
     const dest = _v1
@@ -339,6 +334,9 @@ class LaserTracer {
     this.settings.fuzz = { count: n, sx, sy, sz };
   }
   colorHex(hex) {
+    this.settings.color.setHex(hex >>> 0);
+  }
+  color(hex) {
     this.settings.color.setHex(hex >>> 0);
   }
 }

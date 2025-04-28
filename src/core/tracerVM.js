@@ -20,11 +20,11 @@ const drawTextRel = (t,dx,dy,dz,h=4)=>_h.drawTextRel(t,dx,dy,dz,h);
 /* ────────────── pen: the only stateful object ───────────────────── */
 const pen = {
   /* transform stack & orientation */
-  push : ()       => _h.push(),
-  pop  : ()       => _h.pop(),
-  yaw  : d        => _h.yaw(d),
-  pitch: d        => _h.pitch(d),
-  roll : d        => _h.roll(d),
+  push : ()       => { _h.push(); return pen; },
+  pop  : ()       => { _h.pop(); return pen; },
+  yaw  : d        => { _h.yaw(d); return pen; },
+  pitch: d        => { _h.pitch(d); return pen; },
+  roll : d        => { _h.roll(d); return pen; },
 
   /* brush setters (instant; no local shadow state) */
   dotSize : px                    => { _h.dotSize(px); return pen; },
@@ -38,16 +38,17 @@ const pen = {
   colorCubehelix:(t,st=.5,rot=-1.5,g=1)=>{ _h.colorCubehelix(t,st,rot,g); return pen; },
 
   /* raw motion & strokes */
-  moveTo :(x,y,z)     => _h.moveTo(x,y,z),
-  moveBy :(dx,dy,dz)  => _h.moveBy(dx,dy,dz),
-  traceTo:(x,y,z)     => _h.traceTo(x,y,z),
-  traceBy:(dx,dy,dz)  => _h.traceBy(dx,dy,dz),
-  dot    : ()         => _h.dot(),
-  dotAt  : (x,y,z)    => _h.dotAt(x,y,z),
+  moveTo :(x,y,z)     => { _h.moveTo(x,y,z); return pen; },
+  moveBy :(dx,dy,dz)  => { _h.moveBy(dx,dy,dz); return pen; },
+  traceTo:(x,y,z)     => { _h.traceTo(x,y,z); return pen; },
+  traceBy:(dx,dy,dz)  => { _h.traceBy(dx,dy,dz); return pen; },
+  dot    : ()         => { _h.dot(); return pen; },
 
-  polyline: (pts, close=false)=> _h.polylineLocal(pts, close|0),
-  sweep: (path, prof, close=false)=>
-    _h.sweepLocal(path, prof, close|0)
+  text: (text, height=4) => { _h.drawTextRel(text, 0, 0, 0, height); return pen; },
+  polyline: (pts, close=false)=> { _h.polylineLocal(pts, close|0); return pen; },
+  sweep: (path, prof, close=false)=> {
+    _h.sweepLocal(path, prof, close|0); return pen;
+  }
 };
 
 /* make pen visible inside QuickJS for debugging/REPL */
@@ -55,13 +56,13 @@ globalThis.pen = pen;
 
 /* ────────────── stateless draw helpers ─────────────────────────── */
 const draw = {
-  line(p0, p1) {
+  trace(p0, p1) {
     pen.push();
     pen.moveTo(p0.x, p0.y, p0.z);
     pen.traceTo(p1.x, p1.y, p1.z);
     pen.pop();
   },
-  point(p) {
+  dot(p) {
     pen.push(); pen.moveTo(p.x, p.y, p.z); pen.dot(); pen.pop();
   },
   text(str, p, h = 4) {
@@ -76,10 +77,11 @@ const draw = {
 
 // ---- colour utilities (kept from v2) ------------------------------
 const setBGColor = hex => _h.setBGColor(hex);
-
+const setCamera = (pos, look) => _h.setCamera(pos.x, pos.y, pos.z, look.x, look.y, look.z);
+const orbitCamera = (center, radius, azDeg, elDeg) => _h.orbitCamera(center, radius, azDeg, elDeg);
 
 globalThis.draw = draw;
-`; // ← end of String.raw
+`;
 
 function buildProgramWrapper(userSource) {
   return (
@@ -121,7 +123,6 @@ function makeDecoders(ctx) {
     moveBy: [N, N, N],
     traceTo: [N, N, N],
     traceBy: [N, N, N],
-    dotAt: [N, N, N],
     dot: [],
     push: [],
     pop: [],
@@ -138,6 +139,8 @@ function makeDecoders(ctx) {
     colorCubehelix: [N, N, N, N],
     colorHex: [N],
     setBGColor: [N],
+    setCamera: [N, N, N, N, N, N],
+    orbitCamera: [D, N, N, N],
 
     /* ── brush setters ───────────────────────────────────────── */
     dotSize: [N],

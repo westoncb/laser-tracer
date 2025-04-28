@@ -4,7 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import TracerManager from "../core/tracerManager.js";
 import TracerVM from "../core/tracerVM.js";
-import tracerLib from "../core/tracerLib.js";
+import TracerLib from "../core/tracerLib.js";
 
 /**
  * Props
@@ -24,6 +24,7 @@ export default function LaserCanvas({
   const mountRef = useRef(null);
   const vmRef = useRef(null);
   const tracerMgrRef = useRef(null);
+  const tracerLibRef = useRef(null);
   const rafIdRef = useRef(null);
 
   const cameraRef = useRef(null);
@@ -67,6 +68,9 @@ export default function LaserCanvas({
     tracerMgr.attachToScene(scene);
     tracerMgrRef.current = tracerMgr;
 
+    const tracerLib = new TracerLib(renderer, camera, controls);
+    tracerLibRef.current = tracerLib;
+
     /* --- QuickJS VM --------------------------------------------- */
     const vm = new TracerVM(handleCompileErr);
     vmRef.current = vm;
@@ -86,8 +90,6 @@ export default function LaserCanvas({
     resize();
     window.addEventListener("resize", resize);
 
-    tracerLib.renderer = renderer;
-
     let elapsedTime = 0;
 
     /* --- RAF loop ----------------------------------------------- */
@@ -99,7 +101,7 @@ export default function LaserCanvas({
         tracerMgr.update(elapsedTime);
         vm.tick(elapsedTime, tracerMgr.getTracer("laser"), tracerLib);
       }
-      controls.update();
+      tracerLibRef.current.tickControls(elapsedTime);
       renderer.render(scene, camera);
       rafIdRef.current = requestAnimationFrame(animate);
     };
