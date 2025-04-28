@@ -114,7 +114,7 @@ function program(pen, draw, t) {
   pen.dotSize(10);
   pen.fuzz(4, 0.3, 0.3, 0.3);
 
-  draw.point(comet);
+  draw.dot(comet);
 
   /* === 4 · live timestamp text ================================ */
   pen.fuzz(0); // crisp text
@@ -125,16 +125,3 @@ function program(pen, draw, t) {
   const scroll = ((t * 8) % 40) - 20; // scroll left→right
   draw.text(txt, { x: -28 + scroll * 10, y: -18, z: 0 }, 3);
 }
-
-/*
-  roll,pitch,yaw need to be global rather than on pen, same with push,pop
-  moveBy should probably just be translate
-
-  frame.roll, frame.translate, frame.push, etc.
-
-  draw.line(from, to)
-  draw.point(pos)
-  etc
-
-  brush.size, brush.stipple, brush.fuzz, etc.
-*/
