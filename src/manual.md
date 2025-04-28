@@ -1,219 +1,257 @@
-# Laser-Tracer Technical Manual
+# Laser‑Tracer Technical Manual
 
-## Overview
+## 1 · Overview
 
-Laser-Tracer is a real-time, programmable virtual 3D vector display system that lets users create dynamic illuminated structures through simple turtle-graphics-style scripting in a sandboxed JavaScript environment (QuickJS). Each user-written script defines the tracer's movements, orientation, and particle-emission properties to produce a wide range of visual structures. Scripts execute automatically once per animation frame:
+Laser‑Tracer is a real‑time, programmable **virtual 3D vector display**. User scripts—executed inside a sandboxed QuickJS runtime—control a _pen_ that emits particles as it moves through space controlled by a Turtle Graphics-style programs, creating time-decaying volumetric light drawings mimicking phosphor vector monitors.
+
+Every animation frame the engine calls your entry function:
 
 ```javascript
-function program(time) {
-  // Your drawing commands here
+function program(pen, draw, time) {
+  // • pen  ⇢ stateful pen object (local coordinates)
+  // • draw ⇢ world space convenience functions
+  // • time ⇢ seconds since scene start (float)
 }
 ```
 
-Each call defines points or paths, through built-in functions that spawn glowing particles, which mimic the decay characteristics of phosphor-based vector displays. Time parameter is in seconds.
+All movement, rotation, color, and emission commands live on the **`pen`** object. The auxiliary **`draw`** helpers offer convenience calls that ignore the pen’s local frame, emitting geometry directly in world space.
 
 ---
 
-## Quick Reference
+## 2 · Quick Reference
 
-| Functions                                           | Description                                                                                                  |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `move(x,y,z)` / `moveRel(dx,dy,dz)`                 | Instantly move tracer (absolute/relative).                                                                   |
-| `trace(x,y,z)` / `traceRel(dx,dy,dz)`               | Draw line emitting particles (spacing-dependent, abs./rel.).                                                 |
-| `deposit(x,y,z)` / `depositRel(dx,dy,dz)`           | Emit single particle at position (abs./rel.).                                                                |
-| `yaw(deg)` / `pitch(deg)` / `roll(deg)`             | Rotate tracer. Yaw: left⇄right (CCW +). Pitch: up⇅down (+ nose-up). Roll: rotate forward axis (+ clockwise). |
-| `push()` / `pop()`                                  | Save/restore tracer pose and brush state.                                                                    |
-| `size(px)` / `spacing(dist)`                        | Set particle size (px) and spacing for `trace()`.                                                            |
-| `residue(seconds)`                                  | Particle lifetime.                                                                                           |
-| `fuzz(count,sx,sy,sz)`                              | Extra jittered particles; Gaussian spread (`sx, sy, sz`).                                                    |
-| `colorHex(hex)`/`colorRGB(r,g,b)`/`colorHSV(h,s,v)` | Set particle color.                                                                                          |
-| `colorViridis(t)` / `colorCubehelix(t,...)`         | Set particle color from special palettes.                                                                    |
-| `drawText(...)` / `drawTextRel(...)`                | Emit text glyphs (absolute/relative).                                                                        |
-
-## Core Concepts
-
-### Tracer State and Relative vs Absolute Commands
-
-Laser-Tracer maintains a tracer state consisting of:
-
-- **Position:** A vector indicating current tracer location.
-- **Orientation:** A quaternion representing current tracer rotation.
-
-**Absolute Commands** (`move`, `trace`, `deposit`) set tracer state directly to provided coordinates.
-
-**Relative Commands** (`moveRel`, `traceRel`, `depositRel`) perform operations based on current tracer state and update tracer position afterward. Each relative command implicitly modifies tracer position, affecting subsequent relative operations.
-
-Tracer starts at 0,0,0. The camera is initialized looking down the negative Z-axis from 0,0,150.
-
-### Frame Execution
-
-- **Entry Point:** Define a function `program(time)`.
-- **Automatic Execution:** Called once per animation frame, with `time` providing the current timestamp in seconds.
-- **Persistent State:** Tracer pose (position/orientation) and brush state (color, size, fuzz, spacing, residue) persist automatically between frames.
-
-### Particle Lifetime and Persistence
-
-- **Residue:** Each emitted particle remains visible for its defined lifetime (`residue`). Alpha fades gradually.
-- **Continuous Drawing:** To maintain persistent visual lines, re-emit ("refresh") the strokes each frame or at regular intervals shorter than particle lifetimes.
+| Category                 | Method                                                                                  | Notes                                                                                                                                               |
+| ------------------------ | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Transform stack**      | `pen.push()` · `pen.pop()`                                                              | Save / restore pen pose & brush state                                                                                                               |
+| **Orientation**          | `pen.yaw(deg)` · `pen.pitch(deg)` · `pen.roll(deg)`                                     | Positive yaw = CCW, positive pitch = nose-up, positive roll = clockwise. Each call **adds** that rotation to the current orientation (incremental). |
+| **Motion (no emission)** | `pen.moveTo(x,y,z)`                                                                     | Absolute move                                                                                                                                       |
+|                          | `pen.moveBy(dx,dy,dz)`                                                                  | Relative move in pen’s frame                                                                                                                        |
+| **Strokes & dots**       | `pen.traceTo(x,y,z)` · `pen.traceBy(dx,dy,dz)`                                          | Evenly spaced particle line                                                                                                                         |
+|                          | `pen.dot()`                                                                             | Light a single particle at current pen position                                                                                                     |
+| **Style attributes**     | `pen.dotSize(px)` · `pen.traceGap(d)` · `pen.residue(sec)`                              | Size, inter‑particle gap, lifetime                                                                                                                  |
+|                          | `pen.fuzz(n,sx,sy,sz)`                                                                  | Extra jittered particles (Gaussian σ)                                                                                                               |
+|                          | `pen.colorHex(hex)` · `pen.colorRGB(r,g,b)` · `pen.colorHSV(h,s,v)`                     | Colour setters                                                                                                                                      |
+|                          | `pen.colorViridis(t)` · `pen.colorCubehelix(t,start,rot,gamma)`                         | Palette utilities                                                                                                                                   |
+| **Macros (local frame)** | `pen.text(str, h)`¹ · `pen.polyline(pts, close)` · `pen.sweep(path, prof, close)`       | Built from primitive pen ops                                                                                                                        |
+| **Draw helpers (world)** | `draw.dot(p)` · `draw.trace(p0,p1)`                                                     | Stateless; do not affect pen pose                                                                                                                   |
+|                          | `draw.text(str, p, h)`¹ · `draw.polyline(pts, close)` · `draw.sweep(path, prof, close)` | Frame‑independent macros                                                                                                                            |
 
 ---
 
-## Drawing Primitives
+## 3 · Core Concepts
 
-### Movement (No Particle Emission)
+### 3.1 Pen State
 
-- **`move(x, y, z)`**: Instantly move tracer to absolute coordinates.
-- **`moveRel(dx, dy, dz)`**: Move tracer relative to current orientation and position.
+In addition to style attributes (color, fuzz, dotSize, etc.), the **pen** carries two pieces of state representing its local frame as your program runs:
 
-### Drawing with Movement
+- **Position** `vec3` – current XYZ location.
+- **Orientation** `quat` – local axes for _By_ motions (`moveBy`, `traceBy`).
 
-- **`trace(x, y, z)`**: Emit particles at evenly spaced intervals (determined by the `spacing()` brush property) from the current position to `(x,y,z)` and update tracer position.
-- **`traceRel(dx, dy, dz)`**: Relative version of `trace`, using tracer’s current orientation and position.
+Pen state persists automatically; you do **not** need to re‑initialise each frame. The default pose is at (0, 0, 0). Local axes align with world axes as follows: **+X right, +Y up, +Z toward the camera**. The viewer starts at (0 0 150) looking down –Z.
 
-### Single Point Drawing
+The `push` and `pop` methods allow you to save and restore the pen's state, enabling you to create nested coordinate systems or make temporary/local changes to style attributes while retaining ability to return to the previous/parent state. Use `push` to save the current pen state and `pop` to restore it.
 
-- **`deposit(x, y, z)`**: Emit a particle exactly at `(x,y,z)`, updating tracer position.
-- **`depositRel(dx, dy, dz)`**: Relative version of `deposit`; depositRel(0,0,0) emits a particle at the tracer’s current position and updates that position.
+### 3.2 Drawing with `dots` and `traces`
 
----
+A central principle in the design of Laser Tracer is that at the end of the day everything you see is made up of executions of the `dot()` command. `pen.dot()` spawns a particle (possibly with a 'fuzz' of other particles around it); `traceTo/By(x,y,z)` causes triggers a number of `dot()` executions along the path defined by the call, with spacing detemined by the current `pen.traceGap` style attribute. Macros (e.g. `text` or `polyline`) take this one step further by composing `trace` calls into yet higher-order objects.
 
-## Orientation Controls
+### 3.3 Absolute vs Relative Motions
 
-Tracer orientation is cumulative, affecting subsequent relative movements:
+- **To methods** (`moveTo`, `traceTo`) act in **world space**. They say: "move from the pen's current position to this coordinate."
+- **By methods** (`moveBy`, `traceBy`) act in the **pen’s local frame**. They say: "move from the pen’s current position and orientation by this vector."
 
-- **`yaw(degrees)`**: Rotate tracer left/right (positive = CCW).
-- **`pitch(degrees)`**: Rotate tracer up/down (positive = nose-up).
-- **`roll(degrees)`**: Rotate tracer around forward axis (positive = clockwise).
+### 3.4 The `draw` object
 
----
+The `draw` object provides mirror methods to the `pen` object but always act fully in world space, ignoring the pen's local frame. However, they are still executed internally through the pen, so its same brush settings (dotSize, color, etc.) are applied.
 
-## Transformation Stack (push/pop)
+### 3.5 Macros
 
-Laser-Tracer maintains a transformation stack similar to matrix stacks in traditional graphics:
+_Macros_ are predefined compositions of primitive commands—think higher‑level drawing shortcuts.
 
-- **`push()`**: Save current tracer pose (position/orientation) and brush properties.
-- **`pop()`**: Restore previously saved pose and brush state.
+| Macro        | Description                                       | Pen variant                   | Draw variant          |
+| ------------ | ------------------------------------------------- | ----------------------------- | --------------------- |
+| **text**     | Stroke‑rendered glyph string                      | `pen.text()` (frame‑relative) | `draw.text()` (world) |
+| **polyline** | Connect point list with traced segments           | `pen.polyline()`              | `draw.polyline()`     |
+| **sweep**    | Extrude polyline along a path to create a surface | `pen.sweep()`                 | `draw.sweep()`        |
 
-Use push/pop for hierarchical, recursive, or complex nested transformations.
+Calling a macro through **`pen`** means your operating from the pen's local frame—same as always. Macros are just pre-packed sequences of pen commands. Using macros defined on `draw` carry the same distinction always present between `pen` and `draw`: draw operations are fully in world space/absolute coords. When you draw with macros pen style attributes like `traceGap`, `dotSize`, `fuzz` are applied as usual.
 
----
+### 3.6 Frame Execution & Persistence
 
-## Brush Parameters
-
-Control visual appearance of emitted particles:
-
-- **`size(px)`**: Particle sprite diameter in pixels.
-- **`spacing(dist)`**: Distance between particles emitted by `trace()`. Ignored by `deposit()`.
-- **`residue(seconds)`**: Lifetime of particles.
-- **`fuzz(count, sx, sy, sz)`**: Emit additional jittered particles around each particle (Gaussian-distributed fuzziness).
-
-### Color Functions
-
-- **`colorHex(hex)`**: Set particle color with RGB hex value (e.g., `0xffaa00`).
-- **`colorRGB(r,g,b)`**: Set particle color with RGB values [0–1].
-- **`colorHSV(h,s,v)`**: Set particle color using HSV values [0–1].
-- **`colorViridis(t)`**: Choose color from the Viridis palette, t ∈ [0–1] maps along the palette.
-- **`colorCubehelix(t, start=0.5, rot=-1.5, gamma=1)`**: Cubehelix parametric color scheme.
+`program(pen, draw, time)` runs **once per rendered frame**. Any variables outside the function keep their values across calls, allowing counters, random seeds, etc.
 
 ---
 
-### Text Rendering
+## 4 · Pen style attributes
 
-- **`drawText(txt, x, y, z, height)`**: Emit glyphs at absolute position.
-- **`drawTextRel(txt, dx, dy, dz, height)`**: Emit glyphs at relative position.
+| Setter           | Typical Range | Effect                                                                                                                          |
+| ---------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **dotSize(px)**  | 0.1 – 12      | Emmitted diameter on screen                                                                                                     |
+| **traceGap(d)**  | ≥ 0.1 - 1     | Distance between successive dots emitted by trace operations                                                                    |
+| **residue(sec)** | 0.1 – 10      | Particle lifetime before fade‑out                                                                                               |
+| **fuzz(n,σ)**    | n ≤ 10        | For each dot, spawn n additional dots sampled from a 3-D Gaussian with standard deviations (sx, sy, sz) around the original dot |
 
-Text is drawn using trace commands which are impacted by `spacing` and `fuzz` brush properties.
+_Color setters_ accept either hex, normalized RGB, normalized HSV, or palette parameters.
 
-## Persistent Variables
+---
 
-Variables defined outside the `program(time)` function persist across frames, allowing stateful animations or persistent particle systems.
+## 5 · Performance Guidelines
 
-Example:
+| Factor            | Tip                                                     |
+| ----------------- | ------------------------------------------------------- |
+| Visible particles | Stay ≤ **500 k** for 60 fps on mid‑range GPUs           |
+| traceGap          | Smaller gaps ←→ more dots; keep ≥ 0.2 unless necessary  |
+| fuzz              | Each dot spawns _n_·(1+fuzz) particles – ramp carefully |
+| residue           | Short lifetimes reduce accumulated particles            |
+
+---
+
+## 6 · Canvas/camera settings
+
+`setBGColor(hex)` – set background color.
+`setCamera(position: {x, y, z}, lookAt: {x, y, z})` – set camera position and look-at point.
+
+---
+
+## 7 · Examples
+
+### 7.1 Basic example
 
 ```javascript
-let angle = 0;
-function program(time) {
-  angle += 0.01;
-  yaw(angle);
-  traceRel(0, 0, 10);
-}
-```
+// Laser‑Tracer demo – WEBBED ORB
+let spin = 0;
 
-## Performance Recommendations
-
-- **Particle Limit:** Aim for ≤ **500,000 visible particles** for smooth performance on typical GPUs.
-- **Spacing:** Recommended ≥ `0.2` world-units. Smaller spacing drastically increases particle count.
-- **Residue Guidelines:**
-  - Short: `0.2–1s`
-  - Medium: `1–3s`
-  - Long: `3–10s`
-- **Fuzz:** Moderate fuzz (typically `count ≤ 10`). Every deposit (or indirect deposits through trace commands) spawns extra `count` particles, significantly increasing particle counts.
-
----
-
-## Examples
-
-```javascript
-/* ================================================================
-WEBBED ORB
-================================================================= */
-
-function program(t) {
+function program(pen, draw, t) {
   const R = 30;
-  const arms = 7; // number of spikes
-  size(2);
-  spacing(15);
-  residue(12);
-  fuzz(40, 0.2);
+  const arms = 7;
+
+  pen.dotSize(2).traceGap(15).residue(12).fuzz(40, 0.2);
+
+  spin += 0.6 * (1 / 60); // manual Δt ~ 1/60s
 
   for (let a = 0; a < arms; a++) {
-    const angle = (a / arms) * Math.PI * 2 + t * 0.6;
-    const x = R * Math.cos(angle);
-    const y = R * Math.sin(angle);
-    const z = Math.sin(angle * 3 + t) * 30; // wavy height
+    const ang = (a / arms) * Math.PI * 2 + spin;
+    const x = R * Math.cos(ang);
+    const y = R * Math.sin(ang);
+    const z = Math.sin(ang * 3 + t) * 30;
 
-    // Use viridis color palette instead of fixed color
-    // Each arm gets a different position in the spectrum
-    // The position shifts over time for animation
-    colorViridis((a / arms + t * 0.2) % 1);
+    pen.colorViridis((a / arms + t * 0.2) % 1);
 
-    trace(x, y, z);
-
-    /* return to hub so next arm is clean */
-    trace(0, 0, 0);
+    pen.moveTo(0, 0, 0).traceTo(x, y, z).traceTo(0, 0, 0); // return to hub
   }
 }
 ```
 
+### 7.2 Macro demonstrations
+
 ```javascript
 /* ================================================================
-   LORENZ FLOW – real‑time stream‑tracer
+   MACRO PLAYGROUND
+   – Demonstrates text, polyline, and sweep macros
+     • draw.*  → frame-independent world geometry
+     • pen.*   → follows the pen’s pose each frame
 ================================================================= */
 
-// ---------- FIELD PARAMETERS ------------------------------------
+/* ---------- static data (outside program) ---------------------- */
+const frame = [
+  // square wire-frame
+  { x: -60, y: -60, z: 0 },
+  { x: 60, y: -60, z: 0 },
+  { x: 60, y: 60, z: 0 },
+  { x: -60, y: 60, z: 0 },
+];
+const labelPos = { x: 0, y: 55, z: 0 }; // above the frame
+
+// helper to build a circle path for sweep
+function circlePath(R, segs = 24) {
+  const pts = [];
+  for (let i = 0; i < segs; i++) {
+    const a = (i / segs) * Math.PI * 2;
+    pts.push({ x: R * Math.cos(a), y: 0, z: R * Math.sin(a) });
+  }
+  return pts;
+}
+const ringPath = circlePath(30); // 30-unit radius ring
+const squareProfile = [
+  // tiny square profile
+  { x: -2, y: -2, z: 0 },
+  { x: 2, y: -2, z: 0 },
+  { x: 2, y: 2, z: 0 },
+  { x: -2, y: 2, z: 0 },
+];
+
+/* ---------- animated state ------------------------------------- */
+let spin = 0;
+
+/* ============================================================= */
+function program(pen, draw, t) {
+  /* global style */
+  pen.dotSize(2).traceGap(1).residue(12);
+
+  /* 1 · draw.* macros – static world geometry ------------------ */
+  draw.polyline(frame, true); // grey frame
+  draw.text("MACRO DEMO", labelPos, 5); // header text
+
+  // build the ring tube only once (t ≈ 0 on first frame)
+  if (t < 0.05) draw.sweep(ringPath, squareProfile, true);
+
+  /* 2 · pen.* macros – follow the pen’s orientation ------------ */
+  spin += 0.025; // radians per frame
+  pen
+    .push()
+    .moveTo(0, 0, 0)
+    .yaw((spin * 180) / Math.PI) // convert to degrees
+    .colorViridis((t * 0.15) % 1);
+
+  // rotating triangle with pen.polyline
+  pen.polyline(
+    [
+      { x: 0, y: 0, z: 0 },
+      { x: 20, y: 0, z: 0 },
+      { x: 10, y: 17.3, z: 0 },
+    ],
+    true,
+  );
+
+  // label that spins with the triangle
+  pen.traceGap(0.25).text("spin!", 4);
+
+  pen.pop();
+}
+```
+
+### 7.3 Persistent custom state
+
+```javascript
+/* ================================================================
+   LORENZ FLOW – real-time stream-tracer demo (centered version)
+   — updated for program(pen, draw, time) API
+================================================================= */
+
+/* ---------- FIELD PARAMETERS ---------------------------------- */
 const sigma = 5;
 const rho = 42;
 const beta = 9 / 3;
 
-// Offset that puts the attractor’s midpoint at the origin
-const CENTER_Z = rho - 1; // = 41 for rho = 42
+/* Offset that puts the attractor midpoint at the origin */
+const CENTER_Z = rho - 1; // 41 for rho = 42
 const CENTER = { x: 0, y: 0, z: CENTER_Z };
 
-// ---------- INTEGRATOR SETTINGS ---------------------------------
+/* ---------- INTEGRATOR SETTINGS ------------------------------- */
 const N_PARTICLES = 256;
 const DT = 0.004;
 const SEED_RADIUS = 1.0;
 
-// ---------- BRUSH ------------------------------------------------
+/* ---------- BRUSH --------------------------------------------- */
 const PX_SIZE = 3;
 const RESIDUE = 18;
 const FUZZ_N = 6;
 const FUZZ_SIG = 0.2;
 
-// ---------- PERSISTENT STATE -------------------------------------
-const pts = [];
+/* ---------- PERSISTENT STATE ---------------------------------- */
+const pts = []; // particle positions
 for (let i = 0; i < N_PARTICLES; i++) {
-  // random seed near origin (no shift here – we integrate in native coords)
+  // random seed inside a small sphere
   const r = Math.random() * SEED_RADIUS;
   const theta = Math.random() * Math.PI * 2;
   const phi = Math.acos(2 * Math.random() - 1);
@@ -224,30 +262,27 @@ for (let i = 0; i < N_PARTICLES; i++) {
   });
 }
 
+/* ---------- Lorenz integrator step ---------------------------- */
 function lorenzStep(p, dt) {
   const dx = sigma * (p.y - p.x);
   const dy = p.x * (rho - p.z) - p.y;
   const dz = p.x * p.y - beta * p.z;
-  return {
-    x: p.x + dx * dt,
-    y: p.y + dy * dt,
-    z: p.z + dz * dt,
-  };
+  return { x: p.x + dx * dt, y: p.y + dy * dt, z: p.z + dz * dt };
 }
 
-function program(t) {
+/* ============================================================= */
+function program(pen, draw, t) {
+  /* configure brush once per frame (all calls chain) */
+  pen.dotSize(PX_SIZE).residue(RESIDUE).fuzz(FUZZ_N, FUZZ_SIG);
+
   const tMs = t * 1000;
-  // --- brush -----------------------------------------------------
-  size(PX_SIZE);
-  residue(RESIDUE);
-  fuzz(FUZZ_N, FUZZ_SIG);
 
   for (let i = 0; i < pts.length; i++) {
     const p0 = pts[i];
     const p1 = lorenzStep(p0, DT);
     pts[i] = p1; // persist new position
 
-    // local stretching magnitude (for colour gamma)
+    /* local stretching magnitude → colour γ  ------------------- */
     const dx = sigma * (p1.y - p1.x);
     const dy = p1.x * (rho - p1.z) - p1.y;
     const dz = p1.x * p1.y - beta * p1.z;
@@ -256,302 +291,71 @@ function program(t) {
     const gamma = 0.5 + 0.5 * sNorm; // 0.5‥1
 
     const phase = (i / N_PARTICLES + tMs * 0.00005) % 1;
-    colorCubehelix(phase, 0.5, -1.5, gamma);
+    pen.colorCubehelix(phase, 0.5, -1.5, gamma);
 
-    // ---- render *shifted* positions ----------------------------
-    deposit(p0.x - CENTER.x, p0.y - CENTER.y, p0.z - CENTER.z);
-    deposit(p1.x - CENTER.x, p1.y - CENTER.y, p1.z - CENTER.z);
+    /* render points, shifted so attractor is centred at origin */
+    draw.dot({ x: p0.x - CENTER.x, y: p0.y - CENTER.y, z: p0.z - CENTER.z });
+    draw.dot({ x: p1.x - CENTER.x, y: p1.y - CENTER.y, z: p1.z - CENTER.z });
   }
 }
 ```
 
-```javascript
-/* Quasicrystal Field Surface – dense variant (≈7.2 k deposits/frame) */
-
-const GRID = 60,
-  STEP = 1,
-  KLEN = 0.35;
-const AMP_SCALE = 16,
-  RESID = 2;
-const FUZZ_N = 4,
-  FUZZ_R = 0.3;
-
-/* pre-compute XY grid */
-const OFF = [];
-for (let z = 0; z < GRID; z++)
-  for (let x = 0; x < GRID; x++)
-    OFF.push({
-      x: (x - (GRID - 1) / 2) * STEP,
-      z: (z - (GRID - 1) / 2) * STEP,
-    });
-
-function wave5(px, pz, θ) {
-  let a = 0;
-  for (let k = 0; k < 5; k++) {
-    const φ = θ + (k * 2 * Math.PI) / 5;
-    a += Math.cos(px * Math.cos(φ) * KLEN + pz * Math.sin(φ) * KLEN);
-  }
-  return a / 5; // [-1,1]
-}
-
-function program(t) {
-  size(10);
-  residue(RESID);
-  fuzz(FUZZ_N, FUZZ_R);
-
-  push();
-  move(0, 0, 42); // bring field ~108 wu from camera
-  const θ = t * 0.4; // temporal phase
-  for (const p of OFF) {
-    const A = wave5(p.x, p.z, θ);
-    colorViridis(Math.abs(A));
-    push();
-    moveRel(p.x, A * AMP_SCALE, p.z);
-    depositRel(0, 0, 0);
-    pop();
-  }
-  pop();
-}
-```
+### 7.3 Camera control example
 
 ```javascript
-/* ================================================================
-   PARAMETRIC CAD-GRID CUBE  ·  canonical example
-   ----------------------------------------------------------------
-   • Regular minor / major face grid
-   • Picture-frame “band” rows around each face
-   • Face labels that read correctly from outside
-================================================================= */
+/* Endless Warp-tunnel */
 
-/* ---------------- configuration knobs ------------------------- */
-const CFG = {
-  halfExtent: 32, // cube half-size (world units)
-  cellsMinor: 16, // # of minor cells along one edge
-  majorStep: 4, // every Nth grid line is “major”
+/* ----- Tunables ------------------------------------------------- */
+const SEGMENTS = 64; // dots per ring
+const GAP = 8; // spacing between rings
+const VIS_RINGS = 60; // rings kept visible at any time
+const R0 = 30; // base radius
+const PULSE_AMP = 6;
+const PULSE_HZ = 0.6;
 
-  /* palette ----------------------------------------------------- */
-  colourMinor: 0x335577,
-  colourMajor: 0x50c0ff,
-  colourBand: 0xff8844,
-  colourEdge: 0xffffff,
-  colourLabel: 0xffff66,
-};
-
-/* ----------------------------------------------------------------
-   ENTRY POINT – called once per animation frame
------------------------------------------------------------------*/
-function program(t) {
-  /* global brush ------------------------------ */
-  residue(0.45);
-  spacing(0.25);
-  fuzz(0);
-
-  /* gentle spin so we can read the labels ---- */
-  push();
-  yaw(t * 12); // deg/s
-  pitch(Math.sin(t * 0.4) * 15);
-
-  const L = CFG.halfExtent;
-  drawCube(L);
-  labelFaces(L);
-  pop();
+/* ----- Helper: point on ring ----------------------------------- */
+function ringPoint(i, segs, r, z) {
+  const a = (i / segs) * Math.PI * 2;
+  return { x: r * Math.cos(a), y: r * Math.sin(a), z };
 }
 
-/* ----------------------------------------------------------------
-   drawCube – grids, and edges (all RELATIVE)
------------------------------------------------------------------*/
-function drawCube(L) {
-  drawFaces(L);
-  drawEdges(L);
-}
+function program(pen, draw, time) {
+  /* 1 · Camera ride -------------------------------------------- */
+  const SPEED = 25; // forward units · s⁻¹
+  const camZ = -time * SPEED;
+  const camX = Math.sin(time * 0.7) * 15;
+  const camY = Math.sin(time * 0.35) * 4;
 
-/* ----------------------------------------------------------------
-   1 · Face grids
------------------------------------------------------------------*/
-function drawFaces(L) {
-  /* helpers ----------------------------------------------------- */
-  const cell = (2 * L) / CFG.cellsMinor;
-  const majorRows = new Set();
-  for (let i = 0; i <= CFG.cellsMinor; i += CFG.majorStep) majorRows.add(i);
+  setCamera({ x: camX, y: camY, z: camZ }, { x: 0, y: 0, z: camZ - 50 });
 
-  const drawGrid = () => {
-    /* vertical + horizontal in one pass ------------------------ */
-    for (let i = 0; i <= CFG.cellsMinor; i++) {
-      const x = -L + i * cell;
-      const isMajor = majorRows.has(i);
+  setBGColor(0x000010);
+  pen.dotSize(2).traceGap(1).residue(8).fuzz(3, 0.5);
 
-      setLineStyle(isMajor ? "major" : "minor");
+  /* 2 · Determine which ring index is at camera’s nose ---------- */
+  // Global ring index grows with distance travelled
+  const baseIndex = Math.floor(-camZ / GAP);
 
-      // vertical
-      push();
-      moveRel(x, -L, 0);
-      traceRel(0, 2 * L, 0);
-      pop();
+  /* 3 · Draw visible slice of tunnel ---------------------------- */
+  for (let k = 0; k < VIS_RINGS; k++) {
+    const ringIdx = baseIndex + k; // unique, ever-increasing
+    const z = -(ringIdx * GAP); // world-space Z
 
-      // horizontal
-      push();
-      moveRel(-L, x, 0);
-      traceRel(2 * L, 0, 0);
-      pop();
+    /* Breathing radius gives motion even on static geometry */
+    const pulse = Math.sin((time * PULSE_HZ - ringIdx * 0.15) * Math.PI * 2);
+    const r = R0 + pulse * PULSE_AMP;
+
+    pen.colorViridis((ringIdx * 0.02 + time * 0.1) % 1);
+
+    for (let i = 0; i < SEGMENTS; i++) {
+      const p = ringPoint(i, SEGMENTS, r, z);
+      draw.dot(p);
     }
-  };
-
-  /* orientations for the six faces (pitch, yaw, roll) ---------- */
-  const faces = [
-    [0, 0, 0], // front  (+Z)
-    [0, 180, 0], // back   (–Z)
-    [0, -90, 0], // left   (–X)
-    [0, 90, 0], // right  (+X)
-    [90, 0, 180], // top    (+Y)
-    [-90, 0, 180], // bottom (–Y)
-  ];
-
-  for (const r of faces) {
-    push();
-    pitch(r[0]);
-    yaw(r[1]);
-    roll(r[2]);
-    moveRel(0, 0, -L); // bring face to origin
-    drawGrid();
-    pop();
   }
-}
 
-/* ----------------------------------------------------------------
-   2 · Cube edges  (thicker outline improves visual legibility)
------------------------------------------------------------------*/
-function drawEdges(L) {
-  setLineStyle("edge");
-
-  const verts = [
-    [L, L, L],
-    [L, L, -L],
-    [L, -L, -L],
-    [L, -L, L], // +X
-    [-L, L, L],
-    [-L, L, -L],
-    [-L, -L, -L],
-    [-L, -L, L], // –X
-  ];
-
-  /* edge indices in quads of four ------------------------------ */
-  const edges = [
-    [0, 1],
-    [1, 2],
-    [2, 3],
-    [3, 0], // +X face perimeter
-    [4, 5],
-    [5, 6],
-    [6, 7],
-    [7, 4], // –X face perimeter
-    [0, 4],
-    [1, 5],
-    [2, 6],
-    [3, 7], // connecting edges
-  ];
-
-  for (const e of edges) {
-    const a = verts[e[0]];
-    const b = verts[e[1]];
-    push();
-    moveRel(a[0], a[1], a[2]);
-    traceRel(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-    pop();
-  }
-}
-
-/* ----------------------------------------------------------------
-   3 · Face labels
------------------------------------------------------------------*/
-function labelFaces(L) {
-  /* label brush */
-  size(10);
-  spacing(0.15);
-  fuzz(0);
-  colorHex(CFG.colourLabel);
-
-  const H = 5; // glyph height
-  const faces = [
-    { rot: [0, 0, 0], txt: "FRONT" }, // +Z
-    { rot: [0, 180, 0], txt: "BACK" }, // –Z
-    { rot: [0, -90, 0], txt: "LEFT" }, // –X
-    { rot: [0, 90, 0], txt: "RIGHT" }, // +X
-    { rot: [90, 0, 180], txt: "TOP" }, // +Y
-    { rot: [-90, 0, 180], txt: "BOTTOM" }, // –Y
-  ];
-
-  for (const f of faces) {
-    push();
-    pitch(f.rot[0]);
-    yaw(f.rot[1]);
-    roll(f.rot[2]);
-    moveRel(0, 0, -L + 0.3); // slight lift to avoid Z-fighting
-    drawTextRel(f.txt, 0, 0, 0, H);
-    pop();
-  }
-}
-
-/* ----------------------------------------------------------------
-   setLineStyle – central thickness & colour helper
------------------------------------------------------------------*/
-function setLineStyle(kind) {
-  switch (kind) {
-    case "minor":
-      size(10);
-      colorHex(CFG.colourMinor);
-      break;
-    case "major":
-      size(10);
-      colorHex(CFG.colourMajor);
-      break;
-    case "edge":
-      size(20);
-      colorHex(CFG.colourEdge);
-      break;
-  }
-}
-```
-
-```javascript
-/* 5-Wave Quasicrystal */
-
-const GRID = 65,
-  STEP = 1,
-  KLEN = 0.35;
-const AMP_SCALE = 16,
-  RESID = 0.7;
-const FUZZ_N = 3,
-  FUZZ_R = 0.25;
-
-/* pre-compute XY grid */
-const OFF = [];
-for (let z = 0; z < GRID; z++)
-  for (let x = 0; x < GRID; x++)
-    OFF.push({
-      x: (x - (GRID - 1) / 2) * STEP,
-      z: (z - (GRID - 1) / 2) * STEP,
-    });
-
-function wave5(px, pz, θ) {
-  let a = 0;
-  for (let k = 0; k < 5; k++) {
-    const φ = θ + (k * 2 * Math.PI) / 5;
-    a += Math.cos(px * Math.cos(φ) * KLEN + pz * Math.sin(φ) * KLEN);
-  }
-  return a / 5; // [-1,1]
-}
-
-function program(t) {
-  size(8);
-  residue(RESID);
-  fuzz(FUZZ_N, FUZZ_R);
-
-  move(0, 0, 42);
-  const θ = t * 0.4;
-  for (const p of OFF) {
-    const A = wave5(p.x, p.z, θ);
-    colorViridis(Math.abs(A));
-    deposit(p.x, A * AMP_SCALE, p.z, Math.abs(A));
+  /* 4 · Occasional flash sprite -------------------------------- */
+  if (Math.floor(time * 3) % 10 === 0) {
+    pen.colorHSV(0, 0, 1).dotSize(6).residue(0.4).fuzz(0);
+    draw.dot({ x: camX, y: camY, z: camZ - 20 });
   }
 }
 ```
