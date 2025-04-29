@@ -191,247 +191,121 @@ These utilities are **global functions** (not `pen.` or `draw.` methods). They a
 
 ## 7 · Examples
 
-### 7.1 Basic example
-
-```javascript
-// Laser‑Tracer demo – WEBBED ORB
-let spin = 0;
-
-function program(pen, draw, t) {
-  const R = 30;
-  const arms = 7;
-
-  pen.dotSize(2).traceGap(15).residue(12).fuzz(40, 0.2);
-
-  spin += 0.6 * (1 / 60); // manual Δt ~ 1/60s
-
-  for (let a = 0; a < arms; a++) {
-    const ang = (a / arms) * Math.PI * 2 + spin;
-    const x = R * Math.cos(ang);
-    const y = R * Math.sin(ang);
-    const z = Math.sin(ang * 3 + t) * 30;
-
-    pen.colorViridis((a / arms + t * 0.2) % 1);
-
-    pen.moveTo(0, 0, 0).traceTo(x, y, z).traceTo(0, 0, 0); // return to hub
-  }
-}
-```
-
-### 7.2 Macro demonstrations
+### 7.1 Basic comprehensive example
 
 ```javascript
 /* ================================================================
-   MACRO PLAYGROUND
-   – Demonstrates text, polyline, and sweep macros
-     • draw.*  → frame-independent world geometry
-     • pen.*   → follows the pen’s pose each frame
-================================================================= */
+   Laser-Tracer demo :  FULL-FEATURED PLAYGROUND TOUR
+   ------------------------------------------------
+   Demonstrates:
+     • Global helpers  : setBGColor, orbitCamera
+     • draw.* vs pen.* : world-axis gizmo vs. local cube
+     • Macros          : polyline(), text()
+     • Style setters   : colorRGB, colorCubehelix, traceGap, dotSize, fuzz
+     • Orientation     : yaw / pitch / roll
+     • Variable state  : first-frame flag outside program()
+================================================================ */
 
-/* ---------- static data (outside program) ---------------------- */
-const frame = [
-  // square wire-frame
-  { x: -60, y: -60, z: 0 },
-  { x: 60, y: -60, z: 0 },
-  { x: 60, y: 60, z: 0 },
-  { x: -60, y: 60, z: 0 },
+const SIZE = 8;
+const EDGES = [
+  // bottom square  z = –2
+  [
+    { x: -SIZE, y: -SIZE, z: -SIZE },
+    { x: SIZE, y: -SIZE, z: -SIZE },
+    { x: SIZE, y: SIZE, z: -SIZE },
+    { x: -SIZE, y: SIZE, z: -SIZE },
+  ],
+  // top square     z = +SIZE
+  [
+    { x: -SIZE, y: -SIZE, z: SIZE },
+    { x: SIZE, y: -SIZE, z: SIZE },
+    { x: SIZE, y: SIZE, z: SIZE },
+    { x: -SIZE, y: SIZE, z: SIZE },
+  ],
+  // vertical ribs
+  [
+    { x: -SIZE, y: -SIZE, z: -SIZE },
+    { x: -SIZE, y: -SIZE, z: SIZE },
+  ],
+  [
+    { x: SIZE, y: -SIZE, z: -SIZE },
+    { x: SIZE, y: -SIZE, z: SIZE },
+  ],
+  [
+    { x: SIZE, y: SIZE, z: -SIZE },
+    { x: SIZE, y: SIZE, z: SIZE },
+  ],
+  [
+    { x: -SIZE, y: SIZE, z: -SIZE },
+    { x: -SIZE, y: SIZE, z: SIZE },
+  ],
 ];
-const labelPos = { x: 0, y: 55, z: 0 }; // above the frame
 
-// helper to build a circle path for sweep
-function circlePath(R, segs = 24) {
-  const pts = [];
-  for (let i = 0; i < segs; i++) {
-    const a = (i / segs) * Math.PI * 2;
-    pts.push({ x: R * Math.cos(a), y: 0, z: R * Math.sin(a) });
-  }
-  return pts;
-}
-const ringPath = circlePath(30); // 30-unit radius ring
-const squareProfile = [
-  // tiny square profile
-  { x: -2, y: -2, z: 0 },
-  { x: 2, y: -2, z: 0 },
-  { x: 2, y: 2, z: 0 },
-  { x: -2, y: 2, z: 0 },
-];
-
-/* ---------- animated state ------------------------------------- */
-let spin = 0;
-
-/* ============================================================= */
-function program(pen, draw, t) {
-  /* global style */
-  pen.dotSize(2).traceGap(1).residue(12);
-
-  /* 1 · draw.* macros – static world geometry ------------------ */
-  draw.polyline(frame, true); // grey frame
-  draw.text("MACRO DEMO", labelPos, 5); // header text
-
-  // build the ring tube only once (t ≈ 0 on first frame)
-  if (t < 0.05) draw.sweep(ringPath, squareProfile, true);
-
-  /* 2 · pen.* macros – follow the pen’s orientation ------------ */
-  spin += 0.025; // radians per frame
-  pen
-    .push()
-    .moveTo(0, 0, 0)
-    .yaw((spin * 180) / Math.PI) // convert to degrees
-    .colorViridis((t * 0.15) % 1);
-
-  // rotating triangle with pen.polyline
-  pen.polyline(
-    [
-      { x: 0, y: 0, z: 0 },
-      { x: 20, y: 0, z: 0 },
-      { x: 10, y: 17.3, z: 0 },
-    ],
-    true,
-  );
-
-  // label that spins with the triangle
-  pen.traceGap(0.25).text("spin!", 4);
-
-  pen.pop();
-}
-```
-
-### 7.3 Persistent custom state
-
-```javascript
-/* ================================================================
-   LORENZ FLOW – real-time stream-tracer demo (centered version)
-   — updated for program(pen, draw, time) API
-================================================================= */
-
-/* ---------- FIELD PARAMETERS ---------------------------------- */
-const sigma = 5;
-const rho = 42;
-const beta = 9 / 3;
-
-/* Offset that puts the attractor midpoint at the origin */
-const CENTER_Z = rho - 1; // 41 for rho = 42
-const CENTER = { x: 0, y: 0, z: CENTER_Z };
-
-/* ---------- INTEGRATOR SETTINGS ------------------------------- */
-const N_PARTICLES = 256;
-const DT = 0.004;
-const SEED_RADIUS = 1.0;
-
-/* ---------- BRUSH --------------------------------------------- */
-const PX_SIZE = 3;
-const RESIDUE = 18;
-const FUZZ_N = 6;
-const FUZZ_SIG = 0.2;
-
-/* ---------- PERSISTENT STATE ---------------------------------- */
-const pts = []; // particle positions
-for (let i = 0; i < N_PARTICLES; i++) {
-  // random seed inside a small sphere
-  const r = Math.random() * SEED_RADIUS;
-  const theta = Math.random() * Math.PI * 2;
-  const phi = Math.acos(2 * Math.random() - 1);
-  pts.push({
-    x: r * Math.sin(phi) * Math.cos(theta),
-    y: r * Math.sin(phi) * Math.sin(theta),
-    z: r * Math.cos(phi),
-  });
-}
-
-/* ---------- Lorenz integrator step ---------------------------- */
-function lorenzStep(p, dt) {
-  const dx = sigma * (p.y - p.x);
-  const dy = p.x * (rho - p.z) - p.y;
-  const dz = p.x * p.y - beta * p.z;
-  return { x: p.x + dx * dt, y: p.y + dy * dt, z: p.z + dz * dt };
-}
-
-/* ============================================================= */
-function program(pen, draw, t) {
-  /* configure brush once per frame (all calls chain) */
-  pen.dotSize(PX_SIZE).residue(RESIDUE).fuzz(FUZZ_N, FUZZ_SIG);
-
-  const tMs = t * 1000;
-
-  for (let i = 0; i < pts.length; i++) {
-    const p0 = pts[i];
-    const p1 = lorenzStep(p0, DT);
-    pts[i] = p1; // persist new position
-
-    /* local stretching magnitude → color γ  ------------------- */
-    const dx = sigma * (p1.y - p1.x);
-    const dy = p1.x * (rho - p1.z) - p1.y;
-    const dz = p1.x * p1.y - beta * p1.z;
-    const stretch = Math.hypot(dx, dy, dz);
-    const sNorm = Math.min(1, stretch / 50);
-    const gamma = 0.5 + 0.5 * sNorm; // 0.5‥1
-
-    const phase = (i / N_PARTICLES + tMs * 0.00005) % 1;
-    pen.colorCubehelix(phase, 0.5, -1.5, gamma);
-
-    /* render points, shifted so attractor is centred at origin */
-    draw.dot({ x: p0.x - CENTER.x, y: p0.y - CENTER.y, z: p0.z - CENTER.z });
-    draw.dot({ x: p1.x - CENTER.x, y: p1.y - CENTER.y, z: p1.z - CENTER.z });
-  }
-}
-```
-
-### 7.3 Camera control example
-
-```javascript
-/* Endless Warp-tunnel */
-
-/* ----- Tunables ------------------------------------------------- */
-const SEGMENTS = 64; // dots per ring
-const GAP = 8; // spacing between rings
-const VIS_RINGS = 60; // rings kept visible at any time
-const R0 = 30; // base radius
-const PULSE_AMP = 6;
-const PULSE_HZ = 0.6;
-
-/* ----- Helper: point on ring ----------------------------------- */
-function ringPoint(i, segs, r, z) {
-  const a = (i / segs) * Math.PI * 2;
-  return { x: r * Math.cos(a), y: r * Math.sin(a), z };
-}
+let firstFrame = true; // persists across calls
 
 function program(pen, draw, time) {
-  /* 1 · Camera ride -------------------------------------------- */
-  const SPEED = 25; // forward units · s⁻¹
-  const camZ = -time * SPEED;
-  const camX = Math.sin(time * 0.7) * 15;
-  const camY = Math.sin(time * 0.35) * 4;
-
-  setCamera({ x: camX, y: camY, z: camZ }, { x: 0, y: 0, z: camZ - 50 });
-
-  setBGColor(0x000010);
-  pen.dotSize(2).traceGap(1).residue(8).fuzz(3, 0.5);
-
-  /* 2 · Determine which ring index is at camera’s nose ---------- */
-  // Global ring index grows with distance travelled
-  const baseIndex = Math.floor(-camZ / GAP);
-
-  /* 3 · Draw visible slice of tunnel ---------------------------- */
-  for (let k = 0; k < VIS_RINGS; k++) {
-    const ringIdx = baseIndex + k; // unique, ever-increasing
-    const z = -(ringIdx * GAP); // world-space Z
-
-    /* Breathing radius gives motion even on static geometry */
-    const pulse = Math.sin((time * PULSE_HZ - ringIdx * 0.15) * Math.PI * 2);
-    const r = R0 + pulse * PULSE_AMP;
-
-    pen.colorViridis((ringIdx * 0.02 + time * 0.1) % 1);
-
-    for (let i = 0; i < SEGMENTS; i++) {
-      const p = ringPoint(i, SEGMENTS, r, z);
-      draw.dot(p);
-    }
+  /* ─────────────────────────────
+     1. One-time scene bootstrap
+  ──────────────────────────────*/
+  if (firstFrame) {
+    setBGColor(0x000010); // deep-navy backdrop
+    firstFrame = false;
   }
 
-  /* 4 · Occasional flash sprite -------------------------------- */
-  if (Math.floor(time * 3) % 10 === 0) {
-    pen.colorHSV(0, 0, 1).dotSize(6).residue(0.4).fuzz(0);
-    draw.dot({ x: camX, y: camY, z: camZ - 20 });
+  /* ─────────────────────────────
+     2. Animated camera sweep
+  ──────────────────────────────*/
+  const radius = 60;
+  const az = time * 20; // azimuth spins 20 °/s
+  orbitCamera({ x: 0, y: 0, z: 0 }, radius, az, 20);
+
+  /* ─────────────────────────────
+     3. World-space axis gizmo
+        (uses draw.* helpers)
+  ──────────────────────────────*/
+  const L = 20; // axis length
+  pen.dotSize(4).traceGap(0.1).fuzz(0); // line style
+
+  // +X  (red)
+  pen.push().colorRGB(1, 0, 0);
+  draw.trace({ x: 0, y: 0, z: 0 }, { x: L, y: 0, z: 0 });
+  draw.text("X", { x: L + 0.6, y: 0, z: 0 }, 1.5);
+  pen.pop();
+
+  // +Y  (green)
+  pen.push().colorRGB(0, 1, 0);
+  draw.trace({ x: 0, y: 0, z: 0 }, { x: 0, y: L, z: 0 });
+  draw.text("Y", { x: 0, y: L + 0.6, z: 0 }, 1.5);
+  pen.pop();
+
+  // +Z  (blue)
+  pen.push().colorRGB(0, 0, 1);
+  draw.trace({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: L });
+  draw.text("Z", { x: 0, y: 0, z: L + 0.6 }, 1.5);
+  pen.pop();
+
+  /* ─────────────────────────────
+     4. Spinning neon cube
+        (pen-space, inherits pose)
+  ──────────────────────────────*/
+  pen.push();
+
+  // dynamic colour via Cubehelix — 4-second cycle
+  const t = (time * 0.25) % 1;
+  pen.colorCubehelix(t).traceGap(0.2).dotSize(4).fuzz(6, 0.3);
+
+  // pose animation
+  pen
+    .yaw(time * 30) // 30 °/s spin
+    .pitch(15) // gentle tilt
+    .roll(-10); // slight bank
+
+  // draw edges
+  for (const edge of EDGES) {
+    const close = edge.length > 2;
+    pen.polyline(edge, close);
   }
+
+  pen.pop(); // restore caller’s pose & style
 }
 ```
