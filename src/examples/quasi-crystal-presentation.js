@@ -10,8 +10,8 @@ let rotationAngle = 0;
 let userInteraction = false;
 
 // Animation timing
-const SLIDE_DURATION = 12; // seconds per slide
-const TRANSITION_TIME = 1.5; // seconds for transition
+const SLIDE_DURATION = 10; // seconds per slide
+const TRANSITION_TIME = 1.25; // seconds for transition
 
 // Color palettes
 const COLORS = {
@@ -1191,57 +1191,59 @@ function drawSlide5(pen, time, transitionFactor) {
 }
 
 // Draw currently active slide
-function drawCurrentSlide(pen, time, slideIndex, transitionProgress) {
-  // Calculate transition factor (0 = fully visible, 1 = fully transitioned out)
-  let inTransitionFactor = 0;
-  let outTransitionFactor = 0;
+function drawCurrentSlide(pen, time, slideIndex, t) {
+  const halfway = 0.5; // 0–1 transition progress
 
-  if (transitionProgress < 0.5) {
-    // First half of transition - current slide moving out
-    outTransitionFactor = transitionProgress * 2;
+  let outF, inF;
+
+  if (t < halfway) {
+    // first half: current slides out
+    outF = t / halfway; // 0 → 1
+    inF = 1; // keep next slide parked
   } else {
-    // Second half of transition - next slide moving in
-    inTransitionFactor = (1 - transitionProgress) * 2;
+    // second half: next slides in
+    outF = 1; // already off-screen
+    inF = (1 - t) / halfway; // 1 → 0
   }
 
-  // Draw current slide (moving out)
+  /* ---- current slide (moving out) ---- */
   switch (slideIndex) {
     case 0:
-      drawSlide1(pen, time, outTransitionFactor);
+      drawSlide1(pen, time, outF);
       break;
     case 1:
-      drawSlide2(pen, time, outTransitionFactor);
+      drawSlide2(pen, time, outF);
       break;
     case 2:
-      drawSlide3(pen, time, outTransitionFactor);
+      drawSlide3(pen, time, outF);
       break;
     case 3:
-      drawSlide4(pen, time, outTransitionFactor);
+      drawSlide4(pen, time, outF);
       break;
     case 4:
-      drawSlide5(pen, time, outTransitionFactor);
+      drawSlide5(pen, time, outF);
       break;
   }
 
-  // Draw next slide (moving in)
-  if (transitionProgress > 0) {
-    const nextSlide = (slideIndex + 1) % 5;
+  /* ---- next slide (moving in) ---- */
+  if (t >= halfway) {
+    const next = (slideIndex + 1) % 5;
 
-    switch (nextSlide) {
+    switch (next) {
       case 0:
-        drawSlide1(pen, time, inTransitionFactor);
+        drawSlide1(pen, time, inF);
         break;
       case 1:
-        drawSlide2(pen, time, inTransitionFactor);
+        drawSlide2(pen, time, inF);
         break;
       case 2:
-        drawSlide3(pen, time, inTransitionFactor);
+        drawSlide3(pen, time, inF);
         break;
       case 3:
-        drawSlide4(pen, time, inTransitionFactor);
+        drawSlide4(pen, time, inF);
         break;
       case 4:
-        drawSlide5(pen, time, inTransitionFactor);
+        drawSlide5(pen, time, inF);
         break;
     }
   }

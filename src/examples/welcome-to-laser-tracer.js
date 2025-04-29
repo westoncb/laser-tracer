@@ -1048,7 +1048,7 @@ function drawSectionContent(pen, sectionIndex, time) {
       if (time > 5) {
         drawAnimatedTitle(
           pen,
-          "START CREATING",
+          "PRESS PLAY",
           { x: 0, y: -15, z: 0 },
           1.5,
           time,
