@@ -7,34 +7,30 @@ Laser‑Tracer is a real‑time, programmable **virtual 3D vector display**. Use
 Every animation frame the engine calls your entry function:
 
 ```javascript
-function program(pen, draw, time) {
-  // • pen  ⇢ stateful pen object (local coordinates)
-  // • draw ⇢ world space convenience functions
+function program(pen, time) {
+  // • pen  ⇢ stateful pen object
   // • time ⇢ seconds since scene start (float)
 }
 ```
-
-All movement, rotation, color, and emission commands live on the **`pen`** object. The auxiliary **`draw`** helpers offer convenience calls that ignore the pen’s local frame, emitting geometry directly in world space.
 
 ---
 
 ## 2 · Quick Reference
 
-| Category                 | Method                                                                                  | Notes                                                                                                                                                       |
-| ------------------------ | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Transform stack**      | `pen.push()` · `pen.pop()`                                                              | Save / restore pen pose & brush state                                                                                                                       |
-| **Orientation**          | `pen.yaw(deg)` · `pen.pitch(deg)` · `pen.roll(deg)`                                     | Positive yaw = CCW, positive pitch = nose-up, positive roll = counter-clockwise. Each call **adds** that rotation to the current orientation (incremental). |
-| **Motion (no emission)** | `pen.moveTo(x,y,z)`                                                                     | Absolute move                                                                                                                                               |
-|                          | `pen.moveBy(dx,dy,dz)`                                                                  | Relative move in pen’s frame                                                                                                                                |
-| **Strokes & dots**       | `pen.traceTo(x,y,z)` · `pen.traceBy(dx,dy,dz)`                                          | Evenly spaced particle line                                                                                                                                 |
-|                          | `pen.dot()`                                                                             | Light a single particle at current pen position                                                                                                             |
-| **Style attributes**     | `pen.dotSize(px)` · `pen.traceGap(d)` · `pen.residue(sec)`                              | Size, inter‑particle gap, lifetime                                                                                                                          |
-|                          | `pen.fuzz(n,sx,sy,sz)`                                                                  | Extra jittered particles (Gaussian σ)                                                                                                                       |
-|                          | `pen.colorHex(hex)` · `pen.colorRGB(r,g,b)` · `pen.colorHSV(h,s,v)`                     | Color setters                                                                                                                                               |
-|                          | `pen.colorViridis(t)` · `pen.colorCubehelix(t,start,rot,gamma)`                         | Palette utilities                                                                                                                                           |
-| **Macros (local frame)** | `pen.text(str, h)`¹ · `pen.polyline(pts, close)` · `pen.sweep(path, prof, close)`       | Built from primitive pen ops                                                                                                                                |
-| **Draw helpers (world)** | `draw.dot(p)` · `draw.trace(p0,p1)`                                                     | Stateless; do not affect pen pose                                                                                                                           |
-|                          | `draw.text(str, p, h)`¹ · `draw.polyline(pts, close)` · `draw.sweep(path, prof, close)` | Frame‑independent macros                                                                                                                                    |
+| Category                 | Method                                                                            | Notes                                                                                                                                                       |
+| ------------------------ | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Transform stack**      | `pen.push()` · `pen.pop()`                                                        | Save / restore pen pose & brush state                                                                                                                       |
+| **Orientation**          | `pen.yaw(deg)` · `pen.pitch(deg)` · `pen.roll(deg)`                               | Positive yaw = CCW, positive pitch = nose-up, positive roll = counter-clockwise. Each call **adds** that rotation to the current orientation (incremental). |
+| **Motion (no emission)** | `pen.moveTo(x,y,z)`                                                               | Absolute move                                                                                                                                               |
+|                          | `pen.moveBy(dx,dy,dz)`                                                            | Relative move in pen’s frame                                                                                                                                |
+| **Strokes & dots**       | `pen.traceTo(x,y,z)` · `pen.traceBy(dx,dy,dz)`                                    | Evenly spaced particle line                                                                                                                                 |
+|                          | `pen.dot()`                                                                       | Light a single particle at current pen position                                                                                                             |
+| **Style attributes**     | `pen.dotSize(px)` · `pen.traceGap(d)` · `pen.residue(sec)`                        | Size, inter‑particle gap, lifetime                                                                                                                          |
+|                          | `pen.fuzz(n,sx,sy,sz)`                                                            | Extra jittered particles (Gaussian σ)                                                                                                                       |
+|                          | `pen.colorHex(hex)` · `pen.colorRGB(r,g,b)` · `pen.colorHSV(h,s,v)`               | Color setters                                                                                                                                               |
+|                          | `pen.colorViridis(t)` · `pen.colorCubehelix(t,start,rot,gamma)`                   | Palette utilities                                                                                                                                           |
+| **Macros (local frame)** | `pen.text(str, h)`¹ · `pen.polyline(pts, close)` · `pen.sweep(path, prof, close)` | Built from primitive pen ops                                                                                                                                |
+|                          |
 
 ---
 
@@ -55,9 +51,9 @@ Pen state—including its position, orientation (quaternion), and current style 
   - **+Y** → up
   - **+Z** → out of the screen, toward the camera
 
-- **Default camera** A `PerspectiveCamera` is created at **(0 , 0 , 150)** and points straight back toward the origin along the –Z axis. OrbitControls are attached but do nothing until the user drags, so the view you see at launch is always “looking down –Z.”
+- **Default camera** A `PerspectiveCamera` is created at **(0 , 0 , 150)** and points straight back toward the origin along the –Z axis.
 
-Because the camera moves independently of the pen, rotating the view with OrbitControls never alters the underlying world axes; the pen’s +X/+Y/+Z directions stay fixed in space unless your script rotates them.
+Because the camera moves independently of the pen, altering camera position/direction never alters the underlying world axes; the pen’s +X/+Y/+Z directions stay fixed in space unless your script rotates them.
 
 The `push` and `pop` methods allow you to save and restore the pen's state, enabling you to create nested coordinate systems or make temporary/local changes to style attributes while retaining ability to return to the previous/parent state. Use `push` to save the current pen state and `pop` to restore it.
 
@@ -79,27 +75,17 @@ A central principle in the design of Laser Tracer is that at the end of the day 
 
 Each rotation call adds its angle to the pen's quaternion without changing position. Subsequent `...By` operations will follow these newly-rotated axes, while `...To` operations continue to use global coordinates. In simpler terms: rotate first, then a `By` movement travels along your rotated direction, while a `To` movement always goes directly to absolute world coordinates regardless of orientation.
 
-### 3.4 The `draw` object
+### 3.4 Macros — higher-level drawing shortcuts
 
-The `draw` object provides mirror methods to the `pen` object but always act fully in world space, ignoring the pen's local frame. However, they are still executed internally through the pen, so its same brush settings (dotSize, color, etc.) are applied.
-
-### 3.5 Macros — higher-level drawing shortcuts
-
-Macros wrap sequences of primitive **pen** operations so you can express complex geometry in one call.
-Every macro is available in two flavors:
-
-- **`pen.`** — works in the pen’s **local** frame (affected by the current pose).
-- **`draw.`** — works in **world** coordinates, ignoring the pen’s orientation.
-
-Apart from that coordinate difference the functions are identical and inherit all current style settings (`dotSize`, `traceGap`, `color`, `fuzz`, `residue`). Internally each macro isolates its work with an automatic `push()` / `pop()`, so the pen’s pose and style are exactly what they were when the call returns.
+**Macros** bundle sequences of primitive **pen** commands so you can describe complex geometry with a single call. They always run in the pen’s **local frame**, inheriting the current pose and all style attributes (`dotSize`, `traceGap`, `color`, `fuzz`, `residue`). Each macro performs its work inside an automatic `push()` / `pop()`, so when the call returns the pen’s position, orientation, and style are exactly as they were before.
 
 ---
 
-| Macro        | Pen-space call signature (canonical)              | World-space call signature                         | What it does                                                                                                                                                                                                           |
-| ------------ | ------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **text**     | `pen.text(str, height = 4)`                       | `draw.text(str, pos : { x,y,z }, height = 4)`      | Stroke-renders `str` using a single-line, all-caps vector font (ASCII 32-126). Cap-height is `height` world units; glyphs are drawn in the XY plane and advance along +X.                                              |
-| **polyline** | `pen.polyline(points[], close = false)`           | `draw.polyline(points[], close = false)`           | Connects a list of `{ x,y,z }` vertices with straight traced segments. If `close` is **true** it automatically adds a final edge from last to first.                                                                   |
-| **sweep**    | `pen.sweep(path[], profile[], closePath = false)` | `draw.sweep(path[], profile[], closePath = false)` | Extrudes a 2-D `profile` polyline along the 3-D `path`, emitting a set of profile “slices” oriented by local Frenet yaw/pitch. Set `closePath` to join the last slice back to the first (useful for torus-like loops). |
+| Macro        | Call signature                                    | What it does                                                                                                                                                                                                           |
+| ------------ | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **text**     | `pen.text(str, height = 4)`                       | Stroke-renders `str` using a single-line, all-caps vector font (ASCII 32-126). Cap-height is `height` world units; glyphs are drawn in the XY plane and advance along +X.                                              |
+| **polyline** | `pen.polyline(points[], close = false)`           | Connects a list of `{ x,y,z }` vertices with straight traced segments. If `close` is **true** it automatically adds a final edge from last to first.                                                                   |
+| **sweep**    | `pen.sweep(path[], profile[], closePath = false)` | Extrudes a 2-D `profile` polyline along the 3-D `path`, emitting a set of profile "slices" oriented by local Frenet yaw/pitch. Set `closePath` to join the last slice back to the first (useful for torus-like loops). |
 
 **Parameter conventions**
 
@@ -126,9 +112,9 @@ pen
 
 draws a rotated triangle without disturbing the pen’s outer pose or style.
 
-### 3.6 Frame Execution & Persistence
+### 3.5 Frame Execution & Persistence
 
-`program(pen, draw, time)` runs **once per rendered frame**. Any variables outside the function keep their values across calls, allowing counters, random seeds, etc. Pen state on the other hand automatically persists across frames thought it's dealt within from within the `program(...)` function; the system holds onto a consistent reference to the pen object as the program runs.
+`program(pen, time)` runs **once per rendered frame**. Any variables outside the function keep their values across calls, allowing counters, random seeds, etc. Pen state on the other hand automatically persists across frames thought it's dealt within from within the `program(...)` function; the system holds onto a consistent reference to the pen object as the program runs.
 
 ---
 
@@ -146,8 +132,6 @@ Each setter returns the pen so you can chain calls, and the values persist until
 | `pen.residue(sec)`          | seconds           | 0.1 – 10                  | Lifetime before a particle begins an exponential fade: α(t) = e^(– t / residue).                                                                                                          |
 | `pen.fuzz(n, sx[, sy, sz])` | world units       | n ≤ 10, σ ≈ 0 – 5         | For every “base” dot the engine spawns **n** extra dots whose offsets are drawn from **N(0, diag(σx², σy², σz²))**. If you provide only `sx`, it is reused for all axes (`sy = sz = sx`). |
 
-**Default brush**: `dotSize = 5 px`, `traceGap = 1`, `residue = 1 s`, `fuzz(0)`.
-
 ---
 
 ### 4.2 Color setters
@@ -161,8 +145,6 @@ All color calls target the same brush property—whichever you call last wins.
 | `pen.colorHSV(h, s, v)`                                     | `h,s,v`                                                  | Hue-saturation-value.                                                        |
 | `pen.colorViridis(t)`                                       | `t`                                                      | Maps _t_ through the 256-sample Viridis perceptual palette.                  |
 | `pen.colorCubehelix(t, start = 0.5, rot = –1.5, gamma = 1)` | see above                                                | Parametric Cubehelix palette; lets you sweep through color-blind-safe ramps. |
-
-If you never touch a color setter, the brush starts out **lavender** (`0xAA88FF`).
 
 ---
 
@@ -179,7 +161,7 @@ If you never touch a color setter, the brush starts out **lavender** (`0xAA88FF`
 
 ## 6 · Canvas & camera helpers
 
-These utilities are **global functions** (not `pen.` or `draw.` methods). They act instantly and do **not** affect the pen’s pose or style.
+These utilities are **global functions**. They act instantly and do **not** affect the pen’s pose or style.
 
 | Function                                    | Signature                                                      | What it does                                                                                                                                                                                                                     |
 | ------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -195,117 +177,147 @@ These utilities are **global functions** (not `pen.` or `draw.` methods). They a
 
 ```javascript
 /* ================================================================
-   Laser-Tracer demo :  FULL-FEATURED PLAYGROUND TOUR
-   ------------------------------------------------
-   Demonstrates:
-     • Global helpers  : setBGColor, orbitCamera
-     • draw.* vs pen.* : world-axis gizmo vs. local cube
-     • Macros          : polyline(), text()
-     • Style setters   : colorRGB, colorCubehelix, traceGap, dotSize, fuzz
-     • Orientation     : yaw / pitch / roll
-     • Variable state  : first-frame flag outside program()
+   Laser-Tracer demo :  "Everything but the kitchen sink"
+   ---------------------------------------------------------------
+   Highlights
+     • Global helpers : setBGColor, orbitCamera
+     • Axis gizmo     : pen.moveTo / pen.traceTo / pen.text
+     • Style setters  : dotSize, traceGap, fuzz, color*
+     • Orientation    : yaw / pitch / roll
+     • Macros         : polyline(), sweep(), text()
+     • State          : first-frame bootstrap, per-frame counter
 ================================================================ */
 
-const SIZE = 8;
-const EDGES = [
-  // bottom square  z = –2
-  [
-    { x: -SIZE, y: -SIZE, z: -SIZE },
-    { x: SIZE, y: -SIZE, z: -SIZE },
-    { x: SIZE, y: SIZE, z: -SIZE },
-    { x: -SIZE, y: SIZE, z: -SIZE },
-  ],
-  // top square     z = +SIZE
-  [
-    { x: -SIZE, y: -SIZE, z: SIZE },
-    { x: SIZE, y: -SIZE, z: SIZE },
-    { x: SIZE, y: SIZE, z: SIZE },
-    { x: -SIZE, y: SIZE, z: SIZE },
-  ],
-  // vertical ribs
-  [
-    { x: -SIZE, y: -SIZE, z: -SIZE },
-    { x: -SIZE, y: -SIZE, z: SIZE },
-  ],
-  [
-    { x: SIZE, y: -SIZE, z: -SIZE },
-    { x: SIZE, y: -SIZE, z: SIZE },
-  ],
-  [
-    { x: SIZE, y: SIZE, z: -SIZE },
-    { x: SIZE, y: SIZE, z: SIZE },
-  ],
-  [
-    { x: -SIZE, y: SIZE, z: -SIZE },
-    { x: -SIZE, y: SIZE, z: SIZE },
-  ],
-];
+//// ----------  scene constants  ----------
+const AXIS_LEN = 25; // length of XYZ axes
+const CUBE_SIZE = 8; // half-extent for neon cube
+const RING_RADIUS = 18; // torus path
+const RING_SEGMENTS = 64; // sides on torus sweep
+const RING_PIPE_R = 2.0; // pipe radius (profile size)
 
-let firstFrame = true; // persists across calls
+//// ----------  geometry helpers  ----------
+function cubeEdges(size) {
+  const s = size;
+  return [
+    // bottom
+    [
+      { x: -s, y: -s, z: -s },
+      { x: s, y: -s, z: -s },
+      { x: s, y: s, z: -s },
+      { x: -s, y: s, z: -s },
+    ],
+    // top
+    [
+      { x: -s, y: -s, z: s },
+      { x: s, y: -s, z: s },
+      { x: s, y: s, z: s },
+      { x: -s, y: s, z: s },
+    ],
+    // verticals
+    [
+      { x: -s, y: -s, z: -s },
+      { x: -s, y: -s, z: s },
+    ],
+    [
+      { x: s, y: -s, z: -s },
+      { x: s, y: -s, z: s },
+    ],
+    [
+      { x: s, y: s, z: -s },
+      { x: s, y: s, z: s },
+    ],
+    [
+      { x: -s, y: s, z: -s },
+      { x: -s, y: s, z: s },
+    ],
+  ];
+}
 
-function program(pen, draw, time) {
-  /* ─────────────────────────────
-     1. One-time scene bootstrap
-  ──────────────────────────────*/
+function circlePoints(r, segments) {
+  const pts = [];
+  for (let i = 0; i < segments; ++i) {
+    const a = (i / segments) * Math.PI * 2;
+    pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r, z: 0 });
+  }
+  return pts;
+}
+
+//// ----------  persistent state  ----------
+let firstFrame = true;
+let ringPhase = 0; // animated colour offset
+
+//// ----------  main entry  ----------
+function program(pen, time) {
+  /* ── bootstrap (run once) ─────────────────────────── */
   if (firstFrame) {
-    setBGColor(0x000010); // deep-navy backdrop
+    setBGColor(0x000010); // deep navy
     firstFrame = false;
   }
 
-  /* ─────────────────────────────
-     2. Animated camera sweep
-  ──────────────────────────────*/
-  const radius = 60;
-  const az = time * 20; // azimuth spins 20 °/s
-  orbitCamera({ x: 0, y: 0, z: 0 }, radius, az, 20);
+  /* ── animated camera orbit ────────────────────────── */
+  orbitCamera({ x: 0, y: 0, z: 0 }, 60, time * 20, 20);
 
-  /* ─────────────────────────────
-     3. World-space axis gizmo
-        (uses draw.* helpers)
-  ──────────────────────────────*/
-  const L = 20; // axis length
-  pen.dotSize(4).traceGap(0.1).fuzz(0); // line style
+  /* ── world-space XYZ axes ─────────────────────────── */
+  pen.dotSize(4).traceGap(0.1).fuzz(0);
 
-  // +X  (red)
-  pen.push().colorRGB(1, 0, 0);
-  draw.trace({ x: 0, y: 0, z: 0 }, { x: L, y: 0, z: 0 });
-  draw.text("X", { x: L + 0.6, y: 0, z: 0 }, 1.5);
-  pen.pop();
-
-  // +Y  (green)
-  pen.push().colorRGB(0, 1, 0);
-  draw.trace({ x: 0, y: 0, z: 0 }, { x: 0, y: L, z: 0 });
-  draw.text("Y", { x: 0, y: L + 0.6, z: 0 }, 1.5);
-  pen.pop();
-
-  // +Z  (blue)
-  pen.push().colorRGB(0, 0, 1);
-  draw.trace({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: L });
-  draw.text("Z", { x: 0, y: 0, z: L + 0.6 }, 1.5);
-  pen.pop();
-
-  /* ─────────────────────────────
-     4. Spinning neon cube
-        (pen-space, inherits pose)
-  ──────────────────────────────*/
-  pen.push();
-
-  // dynamic colour via Cubehelix — 4-second cycle
-  const t = (time * 0.25) % 1;
-  pen.colorCubehelix(t).traceGap(0.2).dotSize(4).fuzz(6, 0.3);
-
-  // pose animation
+  // +X (red)
   pen
-    .yaw(time * 30) // 30 °/s spin
-    .pitch(15) // gentle tilt
-    .roll(-10); // slight bank
+    .push()
+    .colorRGB(1, 0, 0)
+    .moveTo(0, 0, 0)
+    .traceTo(AXIS_LEN, 0, 0)
+    .moveTo(AXIS_LEN + 0.8, 0, 0)
+    .text("X", 2)
+    .pop();
 
-  // draw edges
-  for (const edge of EDGES) {
-    const close = edge.length > 2;
-    pen.polyline(edge, close);
+  // +Y (green)
+  pen
+    .push()
+    .colorRGB(0, 1, 0)
+    .moveTo(0, 0, 0)
+    .traceTo(0, AXIS_LEN, 0)
+    .moveTo(0, AXIS_LEN + 0.8, 0)
+    .text("Y", 2)
+    .pop();
+
+  // +Z (blue)
+  pen
+    .push()
+    .colorRGB(0, 0, 1)
+    .moveTo(0, 0, 0)
+    .traceTo(0, 0, AXIS_LEN)
+    .moveTo(0, 0, AXIS_LEN + 0.8)
+    .text("Z", 2)
+    .pop();
+
+  /* ── spinning neon cube (local frame) ─────────────── */
+  pen
+    .push()
+    .yaw(time * 30)
+    .pitch(20)
+    .roll(-10);
+
+  const hue = (time * 0.1) % 1;
+  pen.colorHSV(hue, 1, 1).dotSize(4).traceGap(0.2).fuzz(4, 0.2);
+
+  for (const edge of cubeEdges(CUBE_SIZE)) {
+    pen.polyline(edge, edge.length > 2); // close squares
   }
+  pen.pop();
 
-  pen.pop(); // restore caller’s pose & style
+  /* ── glowing torus (“ring”) via sweep() ───────────── */
+  // Path: circle in the XZ-plane, centred at origin
+  const path = circlePoints(RING_RADIUS, RING_SEGMENTS);
+
+  // Profile: tiny circle lying in the XY-plane
+  const prof = circlePoints(RING_PIPE_R, 12);
+
+  ringPhase = (ringPhase + 0.003) % 1; // slow rainbow
+  pen
+    .colorViridis(ringPhase)
+    .dotSize(3)
+    .traceGap(0.1)
+    .fuzz(2, 0.15)
+    .sweep(path, prof, true); // closePath = true
 }
 ```
