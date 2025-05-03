@@ -6,6 +6,8 @@ import TracerManager from "../core/tracerManager.js";
 import TracerVM from "../core/tracerVM.js";
 import TracerLib from "../core/tracerLib.js";
 
+let elapsedTime = 0;
+
 /**
  * Props
  * ─────
@@ -90,8 +92,6 @@ export default function LaserCanvas({
     resize();
     window.addEventListener("resize", resize);
 
-    let elapsedTime = 0;
-
     /* --- RAF loop ----------------------------------------------- */
     const animate = (now) => {
       if (!hasErrorRef.current) {
@@ -129,16 +129,17 @@ export default function LaserCanvas({
   /* ---------- program switch: reset state ------------------------ */
   useEffect(() => {
     tracerMgrRef.current?.reset(sceneRef.current);
+    elapsedTime = 0;
 
     /* --- also reset camera & controls --------------------------- */
-    const cam = cameraRef.current; // ★ NEW
+    const cam = cameraRef.current;
     if (cam) {
       cam.position.set(0, 0, 150);
       cam.lookAt(0, 0, 0);
       cam.updateProjectionMatrix();
     }
 
-    const ctrls = controlsRef.current; // ★ NEW
+    const ctrls = controlsRef.current;
     ctrls?.reset(); // OrbitControls has its own reset()
   }, [activeProgram]);
 
