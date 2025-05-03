@@ -4,92 +4,91 @@ const triWorld = [
   { x: 0, y: 4, z: 0 },
 ];
 
+// Define styles to avoid repetition
+const styles = {
+  triangle: {
+    color: 0xaa88ff,
+    dotSize: 4,
+    traceGap: 0.1,
+    residue: 6,
+  },
+  mainBeam: {
+    color: 0xaa88ff,
+    dotSize: 5,
+    fuzz: [6, 0.1],
+    residue: 1,
+  },
+  sideBeam: {
+    dotSize: 2,
+    fuzz: [6, 0.05],
+    residue: 1,
+  },
+  text: {
+    color: 0xcc0020,
+    dotSize: 7,
+    traceGap: 0.05,
+    fuzz: [3, 0.05],
+    residue: 0.08,
+  },
+};
+
+// Helper to apply a style
+function applyStyle(pen, style) {
+  pen
+    .colorHex(style.color || 0xffffff)
+    .dotSize(style.dotSize || 3)
+    .traceGap(style.traceGap || 0.1)
+    .residue(style.residue || 1);
+
+  if (style.fuzz) {
+    pen.fuzz(style.fuzz[0], style.fuzz[1]);
+  }
+
+  return pen;
+}
+
 function program(pen, d, time) {
   setCamera({ x: 4, y: 3, z: 25 }, { x: 4, y: -1, z: 0 });
+
+  // Define beam colors and positions
+  const beams = [
+    { color: 0xaa88ff, pos: [0, -2, 0], name: "main" },
+    { color: 0xff44aa, pos: [0, -2, 2], name: "front" },
+    { color: 0x00ffff, pos: [0, -2, -2], name: "back" },
+    { color: 0xffff00, pos: [-2, -2, 0], name: "left" },
+    { color: 0x00ff00, pos: [2, -2, 0], name: "right" },
+  ];
 
   // Master transform group for everything
   pen
     .push()
     .traceGap(0.1)
     .moveTo(4, 2, 0)
-    .yaw(time * 100) // spin 100°/s - affects everything inside this group
+    .yaw(time * 100); // spin 100°/s - affects everything inside
 
-    .push()
-    .colorHex(0xaa88ff)
-    .dotSize(4)
-    .traceGap(0.1)
-    .residue(6)
-    .fuzz(0)
-    .polyline(triWorld, true) // draw in local frame
-    .pop()
+  // Draw the solid triangle
+  applyStyle(pen.push(), styles.triangle).polyline(triWorld, true).pop();
 
-    // Draw the triangle
-    .push()
-    .colorHex(0xaa88ff)
-    .dotSize(4)
-    .residue(6)
+  // Draw the fuzzy triangle
+  applyStyle(pen.push(), styles.triangle)
     .fuzz(5, 4)
-    .polyline(triWorld, true) // draw in local frame
-
+    .polyline(triWorld, true)
     .pop();
 
-  pen
-    .residue(1)
-    // All beams will now share the same rotation as the triangle
+  // Draw all beams
+  beams.forEach((beam) => {
+    const style = beam.name === "main" ? styles.mainBeam : styles.sideBeam;
+    applyStyle(pen.push(), style)
+      .colorHex(beam.color)
+      .moveBy(...beam.pos)
+      .traceTo(4, 6, 0)
+      .pop();
+  });
 
-    // Main central beam
-    .push()
-    .colorHex(0xaa88ff)
-    .moveBy(0, -2, 0)
-    .fuzz(6, 0.1)
-    .dotSize(5)
-    .traceTo(4, 6, 0)
-    .pop()
-
-    // Front beam (magenta)
-    .push()
-    .colorHex(0xff44aa)
-    .moveBy(0, -2, 2) // Offset in front (+z)
-    .fuzz(6, 0.05)
-    .dotSize(2)
-    .traceTo(4, 6, 0)
-    .pop()
-
-    // Back beam (cyan)
-    .push()
-    .colorHex(0x00ffff)
-    .moveBy(0, -2, -2) // Offset in back (-z)
-    .fuzz(6, 0.05)
-    .dotSize(2)
-    .traceTo(4, 6, 0)
-    .pop()
-
-    // Left beam (yellow)
-    .push()
-    .colorHex(0xffff00)
-    .moveBy(-2, -2, 0) // Offset to left (-x)
-    .fuzz(6, 0.05)
-    .dotSize(2)
-    .traceTo(4, 6, 0)
-    .pop()
-
-    // Right beam (blue)
-    .push()
-    .colorHex(0x00ff00)
-    .moveBy(2, -2, 0) // Offset to right (+x)
-    .fuzz(6, 0.05)
-    .dotSize(2)
-    .traceTo(4, 6, 0)
-    .pop()
-
-    // Text element also spinning with everything else
+  // Text element
+  applyStyle(pen, styles.text)
     .moveBy(0, -4, 0)
-    .colorHex(0xcc0020)
-    .yaw(time * -100) // This only affects the text, making it counter-rotate
-    .dotSize(7)
-    .traceGap(0.05)
-    .fuzz(3, 0.05)
-    .residue(0.08)
+    .yaw(time * -100) // Counter-rotate
     .text("hello lasers", 1);
 
   pen.pop(); // End of the master transform group
