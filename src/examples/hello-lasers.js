@@ -4,8 +4,8 @@ const triWorld = [
   { x: 0, y: 4, z: 0 },
 ];
 
-function program(pen, time) {
-  setCamera({ x: 2, y: 3, z: 25 }, { x: 2, y: -1, z: 0 });
+function program(pen, d, time) {
+  setCamera({ x: 4, y: 3, z: 25 }, { x: 4, y: -1, z: 0 });
 
   // Master transform group for everything
   pen

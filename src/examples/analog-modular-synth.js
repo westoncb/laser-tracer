@@ -1145,7 +1145,7 @@ function program(pen, draw, time) {
     initializeSynth();
 
     // Position camera for a nice view
-    setCamera({ x: 0, y: 0, z: 100 }, { x: 0, y: 0, z: 0 });
+    setCamera({ x: 0, y: 0, z: 180 }, { x: -8, y: -20, z: 0 });
   }
 
   // Update animation variables

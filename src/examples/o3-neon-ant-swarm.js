@@ -1,2 +1,0 @@
-//o3 "neon ant swarm"
-function program(p,d,t){setBGColor(0x010003);const S=[];for(let i=0;i<400;i++)S.push({x:(Math.random()-0.5)*30,y:(Math.random()-0.5)*30,z:(Math.random()-0.5)*30,v:Math.random()*6,w:Math.random()*6});p.roll(t*7).pitch(Math.sin(t*0.13)*9);S.forEach(s=>{const k=Math.sin(t*0.3+s.w);p.colorHSV((s.v*0.02+t*0.05)%1,0.6,0.7);p.dotSize(4+Math.sin(t+s.v)*2).fuzz(2,0.08).residue(1.2).moveTo(s.x,s.y,s.z).dot();s.x+=Math.sin(t*0.2+s.v)*k;s.y+=Math.cos(t*0.22+s.w)*k;s.z+=Math.sin(t*0.17+s.v+s.w)*k;});}

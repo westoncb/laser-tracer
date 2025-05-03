@@ -1,5 +1,12 @@
+let BOOT = true;
+
 // Mathematical field-based movement inspired by shader
 function program(pen, draw, time) {
+  if (BOOT) {
+    setCamera({ x: 0, y: 0, z: 10 }, { x: 0, y: 0, z: 0 });
+    BOOT = false;
+  }
+
   const PHI = 1.618033988749895;
   const PSI = 2.399459110339632;
   const SQRT5 = 2.23606797749979;

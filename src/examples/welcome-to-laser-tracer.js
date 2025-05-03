@@ -15,7 +15,7 @@ const SECTIONS = [
   { title: "WELCOME TO LASER TRACER", duration: 8 },
   { title: "DRAW WITH PARTICLES IN 3 DIMENSIONS", duration: 10 },
   { title: "COLORS AND LINES", duration: 10 },
-  { title: "3D TRANSFORMATION HIERARCHY", duration: 10 },
+  { title: "3D TRANSFORMATIONS", duration: 10 },
   { title: "INFINITE POSSIBILITIES", duration: 30 },
 ];
 
@@ -975,7 +975,7 @@ function drawSectionContent(pen, sectionIndex, time) {
       // Section title
       drawAnimatedTitle(
         pen,
-        "3D TRANSFORMATION HIERARCHY",
+        "3D TRANSFORMATIONS",
         { x: 0, y: 18, z: 0 },
         1.5,
         time,
@@ -1114,7 +1114,7 @@ function program(pen, draw, time) {
     setBGColor(0x000005); // Almost black background
 
     // Set initial camera position
-    setCamera({ x: 0, y: 15, z: 70 }, { x: 0, y: -5, z: 0 });
+    setCamera({ x: 0, y: 15, z: 100 }, { x: 0, y: -5, z: 0 });
   }
 
   // Calculate current section and progress

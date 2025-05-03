@@ -142,6 +142,7 @@ function program(pen, draw, time) {
     setBGColor(0x000006);
     initLorenz();
     first = false;
+    setCamera({ x: 0, y: 0, z: 48 }, { x: 0, y: 0, z: 0 });
   }
 
   //// 0 · gentle global spin
@@ -151,7 +152,7 @@ function program(pen, draw, time) {
 
   //// 1 · Φ‑vortex
   pen.push();
-  pen.dotSize(3.8).fuzz(64, 0.7).traceGap(0.18).residue(1.4);
+  pen.dotSize(3.8).fuzz(48, 0.7).traceGap(0.18).residue(1.4);
   for (let n = 0; n < VORTEX_DOTS; n++) {
     const r = VORTEX_K * Math.sqrt(n);
     const a = (n * 2 * Math.PI) / PHI;
@@ -181,7 +182,6 @@ function program(pen, draw, time) {
   pen.pop();
 
   //// 3 · Platonic shells fade in/out
-  const fade = Math.sin((time / SHELL_FADE_T) * Math.PI * 2) * 0.5 + 0.5; // 0‒1
   const shellTypes = ["cube", "octa", "dodeca"];
   shellTypes.forEach((type, idx) => {
     const phase = (time / SHELL_FADE_T + idx / shellTypes.length) % 1;

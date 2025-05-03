@@ -10,9 +10,16 @@ const LUNA = 1.256637061435917; // Moon ratio (lunar dream influence)
 const THETA = 3.141592653589793; // Theta brain waves (dream state)
 const REM = 0.577215664901532; // REM constant (dream phase)
 
+let BOOT = true;
+
 function program(pen, draw, time) {
   setBGColor(0x000205);
   const t = time * 1; // Original slowed dream-time: 0.1
+
+  if (BOOT) {
+    setCamera({ x: 0, y: 0, z: 24 }, { x: 0, y: 0, z: 0 });
+    BOOT = false;
+  }
 
   // Dream state transitions - fluid shifts between dream phases
   const dreamPhase = (Math.sin(t * 0.2) + 1) * 0.5; // 0-1 dream cycle

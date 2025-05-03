@@ -7,26 +7,44 @@
 
 // ────────────────── high-level machine description ─────────────
 const STAGES = [
-  { type: "rotor",  blades:  9, hubR: 7,  tipR: 13, length: 3, mat: "rotor"  },
-  { type: "stator", vanes:  14, innerR: 8, outerR: 14, length: 2, mat: "stator"},
-  { type: "rotor",  blades: 11, hubR: 8,  tipR: 14, length: 3, mat: "rotor"  },
-  { type: "stator", vanes:  16, innerR: 9, outerR: 15, length: 2, mat: "stator"},
+  { type: "rotor", blades: 9, hubR: 7, tipR: 13, length: 3, mat: "rotor" },
+  {
+    type: "stator",
+    vanes: 14,
+    innerR: 8,
+    outerR: 14,
+    length: 2,
+    mat: "stator",
+  },
+  { type: "rotor", blades: 11, hubR: 8, tipR: 14, length: 3, mat: "rotor" },
+  {
+    type: "stator",
+    vanes: 16,
+    innerR: 9,
+    outerR: 15,
+    length: 2,
+    mat: "stator",
+  },
 ];
 
 const DIFFUSER = { inR: 16, outR: 20, length: 4 };
-const NOZZLE   = { inR: 20, outR:  8, length: 5 };
+const NOZZLE = { inR: 20, outR: 8, length: 5 };
 
 // ────────────────── materials ──────────────────────────────────
 const MATERIALS = {
-  rotor:  { r: 0.0, g: 0.9, b: 0.4, size: 4, gap: 0.12 },
+  rotor: { r: 0.0, g: 0.9, b: 0.4, size: 4, gap: 0.12 },
   stator: { r: 0.9, g: 0.6, b: 0.1, size: 4, gap: 0.14 },
   casing: { r: 0.3, g: 0.7, b: 1.0, size: 3, gap: 0.18 },
 };
 
 function mat(p, m) {
   const { r, g, b, size, gap } = MATERIALS[m];
-  return p.colorRGB(r, g, b).dotSize(size).traceGap(gap)
-          .fuzz(2, 0.1).residue(0.8);
+  return p
+    .colorRGB(r, g, b)
+    .dotSize(size)
+    .traceGap(gap)
+    .fuzz(2, 0.1)
+    .residue(0.8);
 }
 
 // ────────────────── tiny helpers ───────────────────────────────
@@ -109,7 +127,10 @@ function buildDiffuser(p, { inR, outR, length }) {
   }
   // longitudinal seams
   for (let i = 0; i < SEG; i += 3) {
-    p.polyline(rings.map((ring) => ring[i]), false);
+    p.polyline(
+      rings.map((ring) => ring[i]),
+      false,
+    );
   }
   return length;
 }
@@ -126,7 +147,10 @@ function buildNozzle(p, { inR, outR, length }) {
     rings.push(ring);
   }
   for (let i = 0; i < SEG; i += 3) {
-    p.polyline(rings.map((ring) => ring[i]), false);
+    p.polyline(
+      rings.map((ring) => ring[i]),
+      false,
+    );
   }
   return length;
 }
@@ -134,7 +158,7 @@ function buildNozzle(p, { inR, outR, length }) {
 // ────────────────── ground grid (unchanged) ────────────────────
 function grid(p) {
   p.push();
-  p.colorRGB(0, 0.4, 0.2).dotSize(1.5).traceGap(0.5).fuzz(0).residue(0.5);
+  p.colorRGB(0, 0.4, 0.2).dotSize(8).traceGap(0.5).fuzz(0).residue(0.5);
   const G = 60,
     S = 10;
   for (let x = -G; x <= G; x += S)
@@ -158,13 +182,13 @@ function grid(p) {
 
 // ────────────────── main loop ──────────────────────────────────
 let first = true;
-function program(pen, time) {
+function program(pen, d, time) {
   if (first) {
     setBGColor(0x000008);
     first = false;
   }
 
-  orbitCamera({ x: 0, y: 0, z: 0 }, 90, time * 10, 20);
+  // orbitCamera({ x: 0, y: 0, z: 0 }, 90, time * 10, 20);
   grid(pen);
 
   pen.push();

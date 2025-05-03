@@ -58,6 +58,7 @@ function program(pen, draw, time) {
     setBGColor(0x000007);
     for (let i = 0; i < SWARM_N; i++) spawnParticle(i, 0);
     first = false;
+    setCamera({ x: 0, y: 0, z: 60 }, { x: 0, y: 0, z: 0 });
   }
 
   // orbitCamera({x:0,y:0,z:0}, 75, time*8, 22);

@@ -9,20 +9,20 @@
 ================================================================ */
 
 //// ---------- tunables ----------
-const CORE_RADIUS     = 6;
-const FILAMENT_COUNT  = 32;
-const SWARM_PARTS     = 1000;
-const SWARM_RADIUS    = 16;
+const CORE_RADIUS = 6;
+const FILAMENT_COUNT = 32;
+const SWARM_PARTS = 1000;
+const SWARM_RADIUS = 16;
 
 //// ---------- persistent swarm state ----------
-const swarm = [];               // {x,y,z,   vx,vy,vz,   born}
+const swarm = []; // {x,y,z,   vx,vy,vz,   born}
 function initSwarm() {
   for (let i = 0; i < SWARM_PARTS; i++) spawnParticle(i, 0);
 }
 function spawnParticle(i, t) {
   const th = Math.random() * 2 * Math.PI;
   const ph = Math.acos(2 * Math.random() - 1);
-  const r  = SWARM_RADIUS * (0.5 + 0.5 * Math.random());
+  const r = SWARM_RADIUS * (0.5 + 0.5 * Math.random());
   swarm[i] = {
     x: r * Math.sin(ph) * Math.cos(th),
     y: r * Math.sin(ph) * Math.sin(th),
@@ -37,7 +37,7 @@ function spawnParticle(i, t) {
 //// ---------- helper ----------
 function paletteShift(pen, t) {
   // smooth cyclic cube‑helix ramp
-  return pen.colorCubehelix((t % 1 + 1) % 1, 0.5, -1.5, 1);
+  return pen.colorCubehelix(((t % 1) + 1) % 1, 0.5, -1.5, 1);
 }
 
 //// ---------- main ----------
@@ -45,6 +45,7 @@ let first = true;
 function program(pen, draw, time) {
   if (first) {
     setBGColor(0x000005);
+    setCamera({ x: 0, y: 0, z: 42 }, { x: 0, y: 0, z: 0 });
     initSwarm();
     first = false;
   }
@@ -54,7 +55,7 @@ function program(pen, draw, time) {
 
   ////  ── pulsating core ─────────────────────────────
   pen.push();
-  pen.dotSize(7)
+  pen.dotSize(7);
   const pulse = 0.6 + 0.4 * Math.sin(time * 2);
   const layers = 10;
   for (let i = 0; i < layers; i++) {
