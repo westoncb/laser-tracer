@@ -15,7 +15,7 @@ const _AXIS_Y = new THREE.Vector3(0, 1, 0);
 const _AXIS_Z = new THREE.Vector3(0, 0, 1);
 
 const SPAWNS_PER_TICK = 42_000;
-const MAX_PARTICLES = 500_000;
+const MAX_PARTICLES = 1_000_000;
 
 /*=====================================================================*/
 class LaserTracer {
@@ -35,9 +35,9 @@ class LaserTracer {
     /* ── user‑visible brush settings ───────────────────────────────*/
     this.settings = {
       color: new THREE.Color(0xaa88ff), // THREE.Color instance avoids allocs
-      dotSize: 5,
-      traceGap: 1, // world‑unit spacing
-      residue: 1, // seconds
+      dotSize: 4,
+      traceGap: 0.1, // world‑unit spacing
+      residue: 0.7, // seconds
       fuzz: { count: 0, sx: 0, sy: 0, sz: 0 },
     };
 
