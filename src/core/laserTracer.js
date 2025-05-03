@@ -47,7 +47,6 @@ class LaserTracer {
     /* ── global time cache ─────────────────────────────────────────*/
     this.timeSeconds = 0;
 
-    /* ── transformation stack ─────────────────────────────────────*/
     this.frame = {
       pos: new THREE.Vector3(),
       rot: new THREE.Quaternion(),

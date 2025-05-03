@@ -124,6 +124,7 @@ export default function LaserCanvas({
   /* ---------- recompile when user edits -------------------------- */
   useEffect(() => {
     vmRef.current?.loadSource(srcCode);
+    tracerMgrRef.current.getTracer("laser").moveTo(0, 0, 0);
   }, [srcCode]);
 
   /* ---------- program switch: reset state ------------------------ */

@@ -1114,7 +1114,7 @@ function program(pen, draw, time) {
     setBGColor(0x000005); // Almost black background
 
     // Set initial camera position
-    setCamera({ x: 0, y: 15, z: 100 }, { x: 0, y: -5, z: 0 });
+    setCamera({ x: 0, y: 15, z: 75 }, { x: 0, y: -5, z: 0 });
   }
 
   // Calculate current section and progress
