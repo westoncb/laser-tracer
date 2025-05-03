@@ -1,19 +1,36 @@
-function program(t) {
+/* ================================================================
+   SOLAR SYSTEM DEMO
+   A modern Laser-Tracer implementation showing a sun, planets, and
+   cube frame grid system with 80s-style neon aesthetics
+================================================================= */
+
+// First frame initialization flag
+let firstFrame = true;
+
+// Main program entry point - called every frame
+function program(pen, d, time) {
+  // First-time initialization
+  if (firstFrame) {
+    setBGColor(0x000020); // Deep space blue
+    setCamera({ x: 0, y: 0, z: 150 }, { x: 0, y: 0, z: 0 });
+    firstFrame = false;
+  }
+
   // Configure global properties
-  residue(5);
+  pen.residue(5);
 
   // Draw cube wireframe with grid lines
-  move(0, 0, 0);
-  drawCubeFrame(t);
+  pen.moveTo(0, 0, 0);
+  drawCubeFrame(pen, time);
 
   // Draw solar system inside the cube
-  drawSolarSystem(t);
+  drawSolarSystem(pen, time);
 }
 
 //----------------------------------------------------------------------
 // drawCubeFrame – CAD‑style cube grid with major / minor subdivisions
 //----------------------------------------------------------------------
-function drawCubeFrame(t) {
+function drawCubeFrame(pen, time) {
   // ---------------- parameters --------------------------------------
   const cubeSize = 40; // half‑extent of cube
   const majorDiv = 10; // major grid squares per side
@@ -21,7 +38,7 @@ function drawCubeFrame(t) {
   const spacingMaj = 1.0; // particle spacing for major lines
   const spacingMin = 1.5; // particle spacing for minor lines
 
-  residue(3);
+  pen.residue(3);
 
   // Define cube faces with orientations
   const faces = [
@@ -35,45 +52,43 @@ function drawCubeFrame(t) {
 
   // Draw each face of the cube
   for (const face of faces) {
-    push();
+    pen.push();
     // Apply face orientation
-    pitch(face.rot[0]);
-    yaw(face.rot[1]);
-    roll(face.rot[2]);
+    pen.pitch(face.rot[0]);
+    pen.yaw(face.rot[1]);
+    pen.roll(face.rot[2]);
 
     // Position at the face
-    moveRel(0, 0, -cubeSize);
+    pen.moveBy(0, 0, -cubeSize);
 
     // ----- minor grid (thinner, dimmer) -----
-    size(4);
-    spacing(spacingMin);
-    fuzz(3, 1);
-    colorHSV(0.33, 0.3, 0.25); // muted green
-    drawGrid(cubeSize, majorDiv * minorDiv, false, minorDiv);
+    pen.dotSize(4).traceGap(spacingMin).fuzz(3, 1).colorHSV(0.33, 0.3, 0.25); // muted green
+    drawGrid(pen, cubeSize, majorDiv * minorDiv, false, minorDiv);
 
     // ----- major grid (heavier, brighter) ---
-    size(4);
-    fuzz(3, 2);
-    spacing(spacingMaj);
-    colorHSV(0.33, 0.35, 0.45); // brighter green
-    drawGrid(cubeSize, majorDiv, true);
+    pen.dotSize(4).fuzz(3, 2).traceGap(spacingMaj).colorHSV(0.33, 0.35, 0.45); // brighter green
+    drawGrid(pen, cubeSize, majorDiv, true);
 
     // Draw face label
-    push();
-    moveRel(0, 0, -0.5); // Slightly in front of the grid
-    size(5);
-    residue(0.5);
-    spacing(0.15);
-    fuzz(0);
-    colorRGB(0.8, 1, 0.8); // Yellow for labels
-    drawTextRel(face.name, 0, 0, 0, 5);
-    pop();
+    pen.push();
+    pen
+      .moveBy(0, 0, -0.5) // Slightly in front of the grid
+      .dotSize(5)
+      .residue(0.5)
+      .traceGap(0.15)
+      .fuzz(0)
+      .colorRGB(0.8, 1, 0.8); // Yellow for labels
 
-    pop();
+    // Center the text on the face
+    const textWidth = face.name.length * 5; // Approximate width
+    pen.moveBy(0, 0, 0).text(face.name, 5);
+    pen.pop();
+
+    pen.pop();
   }
 
   // Helper to draw a grid on a face
-  function drawGrid(size, divisions, drawEveryLine, minorStep = 1) {
+  function drawGrid(pen, size, divisions, drawEveryLine, minorStep = 1) {
     const step = (2 * size) / divisions;
 
     // Draw horizontal lines
@@ -82,23 +97,18 @@ function drawCubeFrame(t) {
       const pos = -size + i * step;
 
       // Horizontal line
-      push();
-      moveRel(-size, pos, 0);
-      traceRel(2 * size, 0, 0);
-      pop();
+      pen.push();
+      pen.moveBy(-size, pos, 0);
+      pen.traceBy(2 * size, 0, 0);
+      pen.pop();
 
       // Vertical line
-      push();
-      moveRel(pos, -size, 0);
-      traceRel(0, 2 * size, 0);
-      pop();
+      pen.push();
+      pen.moveBy(pos, -size, 0);
+      pen.traceBy(0, 2 * size, 0);
+      pen.pop();
     }
   }
-
-  // Draw the edges of the cube with pulsing effect
-
-  // Draw cube edges
-  // drawCubeEdges(cubeSize, pulse);
 }
 
 //------------------------------------------------------------------
@@ -108,18 +118,14 @@ function drawCubeFrame(t) {
 //------------------------------------------------------------------
 function spiralSample(i, n) {
   const g = Math.PI * (3 - Math.sqrt(5)); // golden angle
-  const z = 1 - (2 * (i + 0.5)) / n; // z ∈ [‑1, 1]
+  const z = 1 - (2 * (i + 0.5)) / n; // z ∈ [‑1, 1]
   const r = Math.sqrt(1 - z * z); // radius in xy‑plane
   const theta = g * i;
   return [r * Math.cos(theta), z, r * Math.sin(theta)];
 }
 
 //------------------------------------------------------------------
-// spiralSample(i, n)  – already in your file
-//------------------------------------------------------------------
-
-//------------------------------------------------------------------
-// drawEllipsoid‑Lit
+// drawEllipsoidLit
 //   cx,cy,cz     : centre
 //   rx,ry,rz     : radii
 //   hue          : 0‑1
@@ -130,7 +136,18 @@ function spiralSample(i, n) {
 //     ambient : 0.2            // ambient floor (0‑1)
 //   }
 //------------------------------------------------------------------
-function drawEllipsoidLit(cx, cy, cz, rx, ry, rz, hue, samples, opts = {}) {
+function drawEllipsoidLit(
+  pen,
+  cx,
+  cy,
+  cz,
+  rx,
+  ry,
+  rz,
+  hue,
+  samples,
+  opts = {},
+) {
   const {
     light = null, // null → lighting disabled
     emissive = false,
@@ -178,12 +195,13 @@ function drawEllipsoidLit(cx, cy, cz, rx, ry, rz, hue, samples, opts = {}) {
       value = intensity * (ambient + (1 - ambient) * diffuse);
     }
 
-    colorHSV(hue, 0.5, value);
-    deposit(px, py, pz);
+    pen.colorHSV(hue, 0.5, value);
+    pen.moveTo(px, py, pz);
+    pen.dot();
   }
 }
 
-function drawSolarSystem(t) {
+function drawSolarSystem(pen, time) {
   // 80s neon color palette
   const neonPalette = [
     { h: 0.95, name: "Pink" }, // Neon pink
@@ -193,40 +211,40 @@ function drawSolarSystem(t) {
   ];
 
   // Draw Sun
-  size(4);
-  fuzz(6, 0.8);
-  residue(4);
+  pen.dotSize(4).fuzz(6, 0.8).residue(4);
 
   // Draw sun as an ellipsoid with undulating surface
   const sunRadius = 12;
-  const pulse = Math.sin(t * 2) * 0.05 + 1;
+  const pulse = Math.sin(time * 2) * 0.05 + 1;
 
   // Draw sun surface
   drawEllipsoidLit(
+    pen,
     0,
     0,
     0,
     sunRadius * pulse,
     sunRadius * pulse,
     sunRadius * pulse,
-    0 + Math.sin(t * 0.3) * 0.5,
+    0 + Math.sin(time * 0.3) * 0.5,
     500,
-    { emmissive: true },
+    { emissive: true },
   );
 
   // Draw sun corona
-  size(5);
-  fuzz(16, 3);
+  pen.dotSize(5).fuzz(16, 3);
+
   const coronaPoints = 100;
   for (let i = 0; i < coronaPoints; i++) {
     const angle = (i / coronaPoints) * Math.PI * 2;
-    const r = sunRadius * 1.5 + Math.sin(angle * 8 + t * 5) * 2;
+    const r = sunRadius * 1.5 + Math.sin(angle * 8 + time * 5) * 2;
     const x = Math.cos(angle) * r;
     const z = Math.sin(angle) * r;
-    const y = Math.sin(angle * 4 + t * 3) * 2;
+    const y = Math.sin(angle * 4 + time * 3) * 2;
 
-    colorHSV(0.5 + Math.sin(t * 0.3) * 0.5, 0.8, 0.9);
-    deposit(x, y, z);
+    pen.colorHSV(0.5 + Math.sin(time * 0.3) * 0.5, 0.8, 0.9);
+    pen.moveTo(x, y, z);
+    pen.dot();
   }
 
   // Parameters for planets
@@ -270,7 +288,7 @@ function drawSolarSystem(t) {
   // Draw each planet
   for (let i = 0; i < planets.length; i++) {
     const planet = planets[i];
-    const angle = t * planet.speed;
+    const angle = time * planet.speed;
     const orbitRadius = planet.distance;
 
     // Calculate position
@@ -279,11 +297,11 @@ function drawSolarSystem(t) {
     const y = Math.cos(angle * 0.5) * 2; // Slight up/down motion
 
     // Draw planet with surface detail
-    size(12);
-    fuzz(3, 0.3);
+    pen.dotSize(12).fuzz(3, 0.3);
 
     // Draw planet as an ellipsoid
     drawEllipsoidLit(
+      pen,
       x,
       y,
       z,
@@ -292,7 +310,7 @@ function drawSolarSystem(t) {
       planet.size * planet.stretch.z,
       planet.color.h,
       120,
-      { emmissive: false, ambient: 0.3, light: [0, 0, 0] },
+      { emissive: false, ambient: 0.3, light: [0, 0, 0] },
     );
 
     // Draw moon if planet has one
@@ -303,9 +321,10 @@ function drawSolarSystem(t) {
       const moonY = y + Math.sin(moonAngle * 2) * moonDist * 0.5;
       const moonZ = z + Math.sin(moonAngle) * moonDist;
 
-      residue(10);
+      pen.residue(10);
       // Draw moon as smaller ellipsoid
       drawEllipsoidLit(
+        pen,
         moonX,
         moonY,
         moonZ,
@@ -314,15 +333,13 @@ function drawSolarSystem(t) {
         planet.size * 0.2,
         planet.moonColor.h,
         100,
-        { emmissive: false, ambient: 0.5, light: [0, 0, 0] },
+        { emissive: false, ambient: 0.5, light: [0, 0, 0] },
       );
     }
 
     // Draw rings if planet has them
     if (planet.rings) {
-      residue(0.5);
-      size(4);
-      fuzz(2, 0.1);
+      pen.residue(0.5).dotSize(4).fuzz(2, 0.1);
 
       // Draw two elliptical rings
       const ringColors = [planet.color.h + 0.3, planet.color.h - 0.3];
@@ -331,7 +348,7 @@ function drawSolarSystem(t) {
       for (let r = 0; r < 2; r++) {
         const ringRadius = planet.size * (1.8 + r * 0.8);
         const ringWidth = planet.size * 0.2;
-        colorHSV(ringColors[r], 0.9, 0.8);
+        pen.colorHSV(ringColors[r], 0.9, 0.8);
 
         // Draw inner and outer ring bounds
         for (
@@ -345,7 +362,8 @@ function drawSolarSystem(t) {
             const rx = Math.cos(a) * radius;
             const ry = Math.sin(a) * radius * 0.2; // Flattened on y-axis to create tilt effect
             const rz = Math.sin(a) * radius;
-            deposit(x + rx, y + ry, z + rz);
+            pen.moveTo(x + rx, y + ry, z + rz);
+            pen.dot();
           }
         }
 
@@ -357,7 +375,8 @@ function drawSolarSystem(t) {
           const rx = Math.cos(a) * r;
           const ry = Math.sin(a) * r * 0.2;
           const rz = Math.sin(a) * r;
-          deposit(x + rx, y + ry, z + rz);
+          pen.moveTo(x + rx, y + ry, z + rz);
+          pen.dot();
         }
       }
     }
