@@ -14,8 +14,7 @@ const _AXIS_X = new THREE.Vector3(1, 0, 0);
 const _AXIS_Y = new THREE.Vector3(0, 1, 0);
 const _AXIS_Z = new THREE.Vector3(0, 0, 1);
 
-const SPAWNS_PER_TICK = 42_000;
-const MAX_PARTICLES = 1_000_000;
+const MAX_PARTICLES = 1_000_000; // let the GPU scream
 
 /*=====================================================================*/
 class LaserTracer {
@@ -28,16 +27,19 @@ class LaserTracer {
     this.resetState();
   }
 
+  _beginTick() {}
+  _endTick() {}
+
   /*──────────────────────────────────────────────────────────────────*/
   /* State init / reset                                              */
   /*──────────────────────────────────────────────────────────────────*/
   resetState() {
-    /* ── user‑visible brush settings ───────────────────────────────*/
+    /* ── user-visible brush settings ───────────────────────────────*/
     this.settings = {
-      color: new THREE.Color(0xaa88ff), // THREE.Color instance avoids allocs
+      color: new THREE.Color(0xaa88ff),
       dotSize: 4,
-      traceGap: 0.1, // world‑unit spacing
-      residue: 0.7, // seconds
+      traceGap: 0.1,
+      residue: 0.7,
       fuzz: { count: 0, sx: 0, sy: 0, sz: 0 },
     };
 
@@ -53,14 +55,7 @@ class LaserTracer {
     };
     this.stack = [];
 
-    /* ── tick‑budget throttle ─────────────────────────────────────*/
-    this._tickBudget = SPAWNS_PER_TICK;
-    this._budgetLeft = this._tickBudget;
-    this._emittedThisFrame = 0;
-    this._strideLen = 1;
-    this._strideOffset = 0;
-
-    /* ── per‑spawn object proto (mutated in place) ────────────────*/
+    /* ── per-spawn object proto (mutated in place) ────────────────*/
     this._spawnOpts = {
       color: this.settings.color,
       size: this.settings.dotSize,
@@ -72,28 +67,13 @@ class LaserTracer {
 
   /* Helpers to keep cache in sync when user edits settings */
   _updateSpacingCache() {
-    // guard against zero / negative gaps
     const g = Math.max(1e-6, this.settings.traceGap);
     this.spawnDistance = g;
     this.invSpawnDistance = 1 / g;
   }
 
-  /*──────────────── Budget API ───────────────────────────────────*/
-  _beginTick() {
-    this._budgetLeft = this._tickBudget;
-    this._emittedThisFrame = 0;
-    this._acceptedThisFrame = 0;
-    this._strideOffset = (this._strideOffset + 1) % this._strideLen;
-  }
-  _endTick() {
-    const M = this._emittedThisFrame;
-    const B = this._tickBudget;
-    this._strideLen = Math.max(1, Math.ceil(M / B) || 1);
-  }
-
   /*──────────────────── Stack ────────────────────────────────────*/
   push() {
-    // deep copy settings (clone color to avoid ref sharing)
     const s = {
       pos: this.frame.pos.clone(),
       rot: this.frame.rot.clone(),
@@ -112,11 +92,9 @@ class LaserTracer {
     const s = this.stack.pop();
     if (!s) return;
 
-    /* restore transform */
     this.frame.pos.copy(s.pos);
     this.frame.rot.copy(s.rot);
 
-    /* restore brush settings */
     this.settings.color.copy(s.settings.color);
     this.settings.dotSize = s.settings.dotSize;
     this.settings.traceGap = s.settings.traceGap;
@@ -172,25 +150,26 @@ class LaserTracer {
 
   dot() {
     this._spawnWithFuzz(this.frame.pos);
-    // crucial: DOES NOT move pen
   }
 
   /*──────────────────── Internal line helper ────────────────────*/
   _lineInternal(destVec) {
+    if (destVec.distanceToSquared(this.frame.pos) < 1e-2) return;
+
     const dir = _v2.copy(destVec).sub(this.frame.pos);
     const dist = dir.length();
-    if (!dist) return; // zero‑length – nothing to draw
+    if (!dist) return;
 
     dir.normalize();
-    const steps = Math.min(10_000, Math.floor(dist * this.invSpawnDistance));
 
+    const steps = Math.min(10_000, Math.floor(dist * this.invSpawnDistance));
     const gap = this.spawnDistance;
+
     for (let i = 0; i < steps; i++) {
       this.frame.pos.addScaledVector(dir, gap);
       this._spawnWithFuzz(this.frame.pos);
     }
 
-    // ensure final cap particle even when dist < gap
     if (steps === 0) this._spawnWithFuzz(destVec);
   }
 
@@ -208,13 +187,10 @@ class LaserTracer {
     this.pop();
   }
 
-  /*──────────────────── Text helpers (internal) ────────────────*/
   _drawTextInternal(txt, h = 4) {
     const sp = h * 1.35;
-
     txt = String(txt).toUpperCase();
 
-    /* ---- optional centring ---- */
     const width = txt.length * sp;
     _v1.set(-width * 0.5, 0, 0);
     this.moveBy(_v1.x, _v1.y, _v1.z);
@@ -222,27 +198,24 @@ class LaserTracer {
     for (const ch of txt) {
       const glyph = GLYPH_MAP[ch];
       if (!glyph) {
-        // unknown glyph → blank advance
         _v1.set(sp, 0, 0);
         this.moveBy(_v1.x, _v1.y, _v1.z);
         continue;
       }
 
-      this.push(); // glyph-local frame
+      this.push();
       let penX = 0,
-        penY = 0; // pen in glyph space
+        penY = 0;
 
       for (const stroke of glyph) {
         if (!stroke.length) continue;
 
-        /* pen-up move to first point */
         const [x0, y0] = stroke[0];
         _v1.set((x0 - penX) * h, (y0 - penY) * h, 0);
         this.moveBy(_v1.x, _v1.y, _v1.z);
         penX = x0;
         penY = y0;
 
-        /* pen-down draw the rest */
         for (let i = 1; i < stroke.length; i++) {
           const [x, y] = stroke[i];
           _v1.set((x - penX) * h, (y - penY) * h, 0);
@@ -252,28 +225,21 @@ class LaserTracer {
         }
       }
 
-      /* advance cursor, then restore parent */
       this.pop();
       _v1.set(sp, 0, 0);
       this.moveBy(_v1.x, _v1.y, _v1.z);
     }
   }
 
-  /*──────────────────── Particle helper ────────────────*/
+  /*──────────────────── Particle helper ─────────────────────────*/
   _spawnWithFuzz(base) {
-    const idx = this._emittedThisFrame++; // index within this tick
-
-    // stride accept rule
-    if (idx % this._strideLen !== this._strideOffset) return;
-    if (this._budgetLeft-- <= 0) return; // safety guard
-    this._acceptedThisFrame++;
-
     const { count, sx, sy, sz } = this.settings.fuzz;
+
+    /* hot-field sync */
     const ps = this.particleSystem;
     const opts = this._spawnOpts;
     const pos = opts.position;
 
-    /* sync dynamic fields from current settings */
     opts.lifetime = this.settings.residue;
     opts.size = this.settings.dotSize;
     opts.color.copy(this.settings.color);
@@ -282,19 +248,15 @@ class LaserTracer {
     pos.copy(base);
     ps.spawnParticle(this.timeSeconds, opts);
 
-    /* fuzzed copies */
+    /* fuzz copies */
     for (let i = 0; i < count; i++) {
-      pos.set(
-        base.x + gauss() * sx,
-        base.y + gauss() * sy,
-        base.z + gauss() * sz,
-      );
+      pos.set(base.x + gauss() * 0, base.y + gauss() * 0, base.z + gauss() * 0);
       ps.spawnParticle(this.timeSeconds, opts);
     }
   }
 
   /*──────────────────── Tick / cleanup ──────────────────────────*/
-  update(t) {
+  update(t, renderer) {
     this.timeSeconds = t;
     this.particleSystem.update(t);
   }
@@ -315,6 +277,7 @@ class LaserTracer {
     this.particleSystem.dispose();
   }
 
+  /*──── runtime mutators (unchanged) ───────────────────────────*/
   dotSize(px) {
     this.settings.dotSize = px;
     this._spawnOpts.size = px;

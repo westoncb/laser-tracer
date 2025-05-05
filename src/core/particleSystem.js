@@ -1,276 +1,359 @@
-/*  ParticleSystem.js  ──────────────────────────────────────────────
- *  CPU‑side particle simulator using packed & interleaved attributes
- *  — positionStart.xyz          (float)  ┐
- *  — sizeLifeStart.xyz          (float)  │  InterleavedBuffer 28 B
- *  — color.rgb (normalised)     (uint8)  ┘
- *  ≈ 28 bytes per particle
- *  Adapted from flimshaw “GPU Particle System” → distance‑driven spawn
+import * as THREE from "three";
+import spriteUrl from "../assets/particle2.png"; // feather mask α
+import matcapUrl from "../assets/matcap_shiny.png"; // 512×512 mat-cap
+
+/* -- polyfills & tiny utils --------------------------------------------- */
+
+// octahedral → Uint16×2 pack
+function packOct16(v) {
+  // v: THREE.Vector3 (normalised)
+  const ax = Math.abs(v.x),
+    ay = Math.abs(v.y),
+    az = Math.abs(v.z);
+  let p = new THREE.Vector2(v.x, v.y).divideScalar(ax + ay + az);
+  if (v.z < 0)
+    p.set(
+      (1 - Math.abs(p.y)) * Math.sign(p.x),
+      (1 - Math.abs(p.x)) * Math.sign(p.y),
+    );
+  return {
+    u: Math.floor((p.x * 0.5 + 0.5) * 65535 + 0.5),
+    v: Math.floor((p.y * 0.5 + 0.5) * 65535 + 0.5),
+  };
+}
+
+// Three r151+ ships MathUtils.toHalfFloat, but older builds don’t.
+if (!THREE.MathUtils.toHalfFloat) {
+  THREE.MathUtils.toHalfFloat = (function () {
+    const f32 = new Float32Array(1);
+    const u32 = new Uint32Array(f32.buffer);
+    return function toHalf(x) {
+      f32[0] = x;
+      const b = u32[0];
+      const sign = (b >> 16) & 0x8000;
+      const mant = b & 0x7fffff;
+      const exp = (b >> 23) & 0xff;
+
+      if (exp < 103) return sign; // zero
+      if (exp > 142) return sign | 0x7c00 | (mant ? 1 : 0); // inf / nan
+      if (exp < 113) {
+        const m = mant | 0x800000;
+        return sign | ((m + (1 << (114 - exp))) >> (115 - exp));
+      }
+      return sign | ((exp - 112) << 10) | (mant >> 13);
+    };
+  })();
+}
+
+function shaders() {
+  /* ────────────────────────── Vertex ────────────────────────── */
+  const vertexShader = /* glsl */ `
+  #define TAU 6.28318530718
+
+  uniform float uTime;
+  uniform float uScale;                 // world-units → px
+
+  attribute vec3 positionStart;
+  attribute vec3 sizeLifeStart;         // x=sizePx, y=lifeSec, z=startT
+  attribute vec3 color;                 // per-particle tint (0‥1 already)
+
+  varying vec3  vColor;
+  varying float vLifeLeft;
+  varying float vPointSize;
+
+  /* ---- half-float unpack (mediump is fine) ----------------------- */
+  float unpackHalf (vec2 uv) {
+    return dot(uv, vec2(1.0, 256.0)) / 65535.0;
+  }
+
+  void main () {
+    /* lifetime ------------------------------------------------------ */
+    float sizePx   = sizeLifeStart.x;
+    float lifeTime = sizeLifeStart.y;
+    float startT   = sizeLifeStart.z;
+
+    float t = uTime - startT;
+    vLifeLeft = 1.0 - t / lifeTime;
+
+    if (t < 0.0 || vLifeLeft <= 0.0) {
+      gl_PointSize = 0.0;
+      vLifeLeft = 0.0;
+      gl_Position = vec4(2.0);          // off-screen
+      return;
+    }
+
+    /* colour straight through -------------------------------------- */
+    vColor = color;
+
+    /* view-space metrics ------------------------------------------- */
+    vec4 viewPos     = modelViewMatrix * vec4(positionStart, 1.0);
+    float meters2px  = uScale / -viewPos.z;
+
+    /* -------- optimisation: clamp sprite size in pixels --------- */
+    float diameterPx   = sizePx * (meters2px);
+    const float MAX_PX = 24.0;          // <<< tune for your GPU
+    diameterPx         = min(diameterPx, MAX_PX);
+
+    /* final gl_PointSize ------------------------------------------- */
+    float ptSize   = diameterPx + 12.;
+    vPointSize     = clamp(ptSize * vLifeLeft * vLifeLeft, 1.0, 24.0);
+    gl_PointSize   = vPointSize;
+
+    gl_Position = projectionMatrix * viewPos;
+  }`;
+
+  /* ───────────────────────── Fragment ───────────────────────── */
+  const fragmentShader = /* glsl */ `
+  precision highp float;
+
+  uniform sampler2D tFeather;   // soft-edge α mask
+  uniform sampler2D uMatcap;    // mat-cap texture
+
+  varying vec3  vColor;
+  varying float vLifeLeft;
+  varying float vPointSize;
+
+  void main () {
+
+    /* ---- spherical impostor, optimised ----------------------- */
+    vec2  pc  = gl_PointCoord * 2.0 - 1.0;        // [-1,1]²
+    float r2  = dot(pc, pc);
+    if (r2 > .89) discard;                        // outside circle (early-Z)
+
+    // flat render small particles
+    // if (vPointSize < 1.5) {
+    //     vec4 feather = texture2D(tFeather, gl_PointCoord);
+    //     float alpha  = vLifeLeft * feather.a;
+
+    //     // if (alpha < 0.004) discard;
+    //     gl_FragColor = vec4(vColor, alpha);   // just tint, no mat-cap, no maths
+    //     return;
+    // }
+
+    /* √(1-r²)  ≈ 1 − ½·r²   (max error ≈3.4 %) */
+    float z   = 1.0 - 0.5 * r2;
+    vec3  nV  = vec3(pc, z);                      // already ~unit length
+
+    vec2  uv  = nV.xy * 0.5 + 0.5;
+    vec3  shade = texture2D(uMatcap, uv).rgb;
+
+    /* ---- alpha: lifetime * feather, plus optional----------- */
+    // vec4  feather = texture2D(tFeather, gl_PointCoord);
+    float alpha   = vLifeLeft;
+
+    if (alpha < 0.004) discard;
+
+    /* ---- final colour -------------------------------------------- */
+    gl_FragColor = vec4(shade * vColor, alpha);
+  }`;
+
+  return { vertexShader, fragmentShader };
+}
+
+/* -- main system class --------------------------------------------------- */
+
+/*  SolidParticleSystem_paged.js
+ *  ---------------------------------------------------------------
+ *  One ring-buffer spread over N small VBO “pages”.
+ *  Each page is ≤ 2.1 MiB so orphaning it every frame never stalls.
  */
 
-import * as THREE from "three";
-import spriteUrl from "../assets/particle2.png";
+/* pick a page size that stays < 4 MiB per attribute --------------- */
+const PAGE_VERTS = 60_000; // 60 k × 36 B ≈ 2.1 MiB
 
-class ParticleSystem extends THREE.Object3D {
-  constructor(options = {}) {
+/* ----------------------------------------------------------------- */
+/*  Helper: one self-contained page                                  */
+/* ----------------------------------------------------------------- */
+class Page {
+  constructor(pageIndex, pageVerts, sharedMaterial) {
+    this.index = pageIndex;
+    this.size = pageVerts;
+
+    /* CPU arrays */
+    const posArr = new Float32Array(pageVerts * 3);
+    const miscArr = new Float32Array(pageVerts * 3);
+    const colArr = new Float32Array(pageVerts * 3);
+    const octArr = new Uint16Array(pageVerts * 2);
+
+    /* geometry & attributes */
+    const geom = new THREE.BufferGeometry();
+    const makeAttr = (arr, item, norm = false) =>
+      new THREE.BufferAttribute(arr, item, norm).setUsage(
+        THREE.StreamDrawUsage,
+      ); // orphan every update
+    geom.setAttribute("positionStart", makeAttr(posArr, 3));
+    geom.setAttribute("sizeLifeStart", makeAttr(miscArr, 3));
+    geom.setAttribute("color", makeAttr(colArr, 3));
+    geom.setAttribute("octNormal", makeAttr(octArr, 2, true));
+
+    if (!geom.drawRange) geom.drawRange = { offset: 0, count: 0 };
+
+    geom.drawRange.start = 0;
+    geom.drawRange.count = 0; // invisible until populated
+
+    this.geometry = geom;
+    this.points = new THREE.Points(geom, sharedMaterial);
+    this.points.frustumCulled = false;
+
+    /* handy refs */
+    this.attrPos = geom.getAttribute("positionStart");
+    this.attrMisc = geom.getAttribute("sizeLifeStart");
+    this.attrCol = geom.getAttribute("color");
+    this.attrOct = geom.getAttribute("octNormal");
+
+    /* dirty flag set by parent */
+    this.dirty = false;
+  }
+
+  markDirty() {
+    this.dirty = true;
+  }
+
+  upload() {
+    if (!this.dirty) return;
+    const touch = (attr) => {
+      if (!attr.updateRange) attr.updateRange = { offset: 0, count: 0 };
+      attr.updateRange.count = -1; // orphan whole page
+      attr.needsUpdate = true;
+    };
+    touch(this.attrPos);
+    touch(this.attrMisc);
+    touch(this.attrCol);
+    touch(this.attrOct);
+    this.dirty = false;
+  }
+}
+
+/* ----------------------------------------------------------------- */
+/*  Solid-particle system                                            */
+/* ----------------------------------------------------------------- */
+export default class SolidParticleSystem extends THREE.Object3D {
+  constructor(opts = {}) {
     super();
 
-    /* ── configurable limits ───────────────────────────────────── */
-    this.PARTICLE_COUNT = options.maxParticles || 1_000_000;
-    this.PARTICLE_CONTAINERS = options.containerCount || 1;
-    this.PARTICLES_PER_CONTAINER = Math.ceil(
-      this.PARTICLE_COUNT / this.PARTICLE_CONTAINERS,
-    );
+    /* limits */
+    this.MAX_PARTICLES = opts.maxParticles ?? 1_000_000;
+    const CAP = this.MAX_PARTICLES;
 
-    /* ── sprite texture ────────────────────────────────────────── */
+    /* page grid -------------------------------------------------- */
+    const FULL_PAGES = Math.floor(CAP / PAGE_VERTS);
+    const LAST_SIZE = CAP - FULL_PAGES * PAGE_VERTS;
+    this.PAGE_COUNT = LAST_SIZE ? FULL_PAGES + 1 : FULL_PAGES;
+
+    const pageSize = (i) =>
+      i === this.PAGE_COUNT - 1 && LAST_SIZE ? LAST_SIZE : PAGE_VERTS;
+
+    /* textures / material --------------------------------------- */
     const loader = new THREE.TextureLoader();
-    this.particleSpriteTex =
-      options.particleSpriteTex || loader.load(spriteUrl);
-    this.particleSpriteTex.wrapS = this.particleSpriteTex.wrapT =
-      THREE.RepeatWrapping;
+    const feather = opts.featherTex ?? loader.load(spriteUrl);
+    feather.minFilter = feather.magFilter = THREE.LinearFilter;
+    feather.generateMipmaps = false;
+    const matcap = opts.matcapTex ?? loader.load(matcapUrl);
+    feather.wrapS = feather.wrapT = THREE.ClampToEdgeWrapping;
+    matcap.wrapS = matcap.wrapT = THREE.ClampToEdgeWrapping;
 
-    /* ── shared shader material ────────────────────────────────── */
-    const shaders = ParticleSystem.getShaderStrings();
-    this.particleShaderMat = new THREE.ShaderMaterial({
+    const { vertexShader, fragmentShader } = shaders();
+    this.material = new THREE.ShaderMaterial({
       transparent: true,
-      depthWrite: false,
-      depthTest: false,
-      blending: THREE.AdditiveBlending,
+      depthWrite: true,
+      depthTest: true,
+      // blending: THREE.AdditiveBlending,
       uniforms: {
         uTime: { value: 0 },
         uScale: { value: 1 },
-        tSprite: { value: this.particleSpriteTex },
+        tFeather: { value: feather },
+        uMatcap: { value: matcap },
       },
-      vertexShader: shaders.vertexShader,
-      fragmentShader: shaders.fragmentShader,
+      vertexShader,
+      fragmentShader,
     });
 
-    /* ── containers ────────────────────────────────────────────── */
-    this.PARTICLE_CURSOR = 0;
-    this.particleContainers = [];
-    for (let i = 0; i < this.PARTICLE_CONTAINERS; ++i) {
-      const c = new ParticleContainer(this.PARTICLES_PER_CONTAINER, this);
-      this.particleContainers.push(c);
-      this.add(c);
+    /* allocate pages -------------------------------------------- */
+    this.pages = [];
+    for (let p = 0; p < this.PAGE_COUNT; ++p) {
+      const page = new Page(p, pageSize(p), this.material);
+      this.pages.push(page);
+      this.add(page.points);
     }
+
+    /* ring-buffer indices & bookkeeping ------------------------- */
+    this._cursor = 0;
+    this._liveStart = 0;
+    this._liveCount = 0;
+    this._deathTimes = new Float32Array(CAP);
+    this._pageLiveCnt = new Uint32Array(this.PAGE_COUNT); // verts / page
   }
 
-  /* external emitter API --------------------------------------------------- */
-  spawnParticle(timeSeconds, options) {
-    if (++this.PARTICLE_CURSOR >= this.PARTICLE_COUNT) this.PARTICLE_CURSOR = 0;
-    const idx = Math.floor(this.PARTICLE_CURSOR / this.PARTICLES_PER_CONTAINER);
-    this.particleContainers[idx].spawnParticle(timeSeconds, options);
+  /* ------------------------------------------------------------ */
+  spawnParticle(t, o = {}) {
+    const i = this._cursor;
+    const pg = Math.floor(i / PAGE_VERTS);
+    const off = i - pg * PAGE_VERTS;
+    const page = this.pages[pg];
+
+    /* write attributes into page-local slot -------------------- */
+    const p = o.position ?? new THREE.Vector3();
+    page.attrPos.setXYZ(off, p.x, p.y, p.z);
+
+    const sizePx = o.size ?? 8;
+    const life = o.lifetime ?? 4;
+    page.attrMisc.setXYZ(off, sizePx, life, t);
+
+    const col = new THREE.Color(o.color ?? 0xffffff);
+    page.attrCol.setXYZ(off, col.r, col.g, col.b);
+
+    const n = o.normal ?? new THREE.Vector3(0, 0, 1);
+    const enc = packOct16(n);
+    page.attrOct.setXY(off, enc.u, enc.v);
+
+    this._deathTimes[i] = t + life;
+
+    /* mark page dirty & update live counters ------------------- */
+    page.markDirty();
+    if (this._pageLiveCnt[pg]++ === 0) {
+      page.points.visible = true;
+      page.geometry.drawRange.count = page.size; // draw whole page
+    }
+
+    /* ring-buffer advance */
+    if (this._liveCount < this.MAX_PARTICLES) {
+      ++this._liveCount;
+    } else {
+      this._liveStart = (this._liveStart + 1) % this.MAX_PARTICLES;
+      const deadPg = Math.floor(this._liveStart / PAGE_VERTS);
+      if (this._pageLiveCnt[deadPg] > 0) --this._pageLiveCnt[deadPg];
+      if (this._pageLiveCnt[deadPg] === 0) {
+        this.pages[deadPg].points.visible = false;
+      }
+    }
+    this._cursor = (this._cursor + 1) % this.MAX_PARTICLES;
   }
 
-  update(timeSeconds) {
-    this.particleShaderMat.uniforms.uTime.value = timeSeconds;
-    for (const c of this.particleContainers) c.update(timeSeconds);
+  /* ------------------------------------------------------------ */
+  update(t, world2px = 1) {
+    /* 1. reap expired verts ------------------------------------ */
+    while (this._liveCount && this._deathTimes[this._liveStart] <= t) {
+      const pg = Math.floor(this._liveStart / PAGE_VERTS);
+      if (this._pageLiveCnt[pg] > 0 && --this._pageLiveCnt[pg] === 0) {
+        this.pages[pg].points.visible = false;
+      }
+      this._liveStart = (this._liveStart + 1) % this.MAX_PARTICLES;
+      --this._liveCount;
+    }
+
+    /* 2. upload dirty pages ------------------------------------ */
+    for (const pg of this.pages) pg.upload();
+
+    /* 3. uniforms ---------------------------------------------- */
+    this.material.uniforms.uTime.value = t;
+    this.material.uniforms.uScale.value = world2px;
   }
 
+  /* ------------------------------------------------------------ */
   dispose() {
-    this.particleShaderMat.dispose();
-    this.particleSpriteTex.dispose();
-    for (const c of this.particleContainers) c.dispose();
-  }
-
-  /* ── shader source ─────────────────────────────────────────── */
-  static getShaderStrings() {
-    const vertexShader = `
-      uniform float uTime;
-      uniform float uScale;
-
-      /* packed attributes */
-      attribute vec3 positionStart;
-      attribute vec3 sizeLifeStart;  // x=size, y=lifeTime, z=startTime
-      attribute vec3 color;
-
-      varying vec4 vColor;
-      varying float lifeLeft;
-
-      void main () {
-
-        float size      = sizeLifeStart.x;
-        float lifeTime  = sizeLifeStart.y;
-        float startTime = sizeLifeStart.z;
-
-        float timeElapsed = uTime - startTime;
-        lifeLeft = 1.0 - (timeElapsed / lifeTime);
-
-        /* quadratic size fall‑off, clamped */
-        gl_PointSize = min(24.0, (uScale * size) * lifeLeft * lifeLeft);
-
-        vec4 mvPos = modelViewMatrix * vec4(positionStart, 1.0);
-
-        /* If not yet born or already dead, collapse to nothing */
-        if (timeElapsed < 0.0 || lifeLeft <= 0.0) {
-          gl_PointSize = 0.0;
-          lifeLeft = 0.0;
-        }
-
-        vColor = vec4(color, 1.0);
-        gl_Position = projectionMatrix * mvPos;
-      }`;
-
-    const fragmentShader = `
-      varying vec4 vColor;
-      varying float lifeLeft;
-      uniform sampler2D tSprite;
-
-      float scaleLinear (float v, vec2 d)       { return (v - d.x) / (d.y - d.x); }
-      float scaleLinear (float v, vec2 d, vec2 r){ return mix(r.x, r.y, scaleLinear(v,d)); }
-
-      void main () {
-        float alpha = lifeLeft > 0.995
-                    ? scaleLinear(lifeLeft, vec2(1.0, 0.995), vec2(0.0, 1.0))
-                    : lifeLeft * 0.75;
-
-        vec4 tex = texture2D(tSprite, gl_PointCoord);
-        gl_FragColor = vec4(vColor.rgb * tex.a, alpha * tex.a);
-      }`;
-    return { vertexShader, fragmentShader };
+    this.material.dispose();
+    for (const pg of this.pages) pg.geometry.dispose();
+    this.material.uniforms.tFeather.value?.dispose?.();
+    this.material.uniforms.uMatcap.value?.dispose?.();
   }
 }
-
-/* ========================================================================== */
-/*  PARTICLE CONTAINER                                                        */
-/* ========================================================================== */
-
-class ParticleContainer extends THREE.Object3D {
-  constructor(maxParticles, particleSystem) {
-    super();
-
-    this.FREE_CURSOR = 0; // next guaranteed‑free slot
-
-    /* basic bookkeeping */
-    this.PARTICLE_COUNT = maxParticles;
-    this.PARTICLE_CURSOR = 0;
-    this.count = 0;
-    this.offset = 0;
-    this.particleScaleFactor = Math.sqrt(window.devicePixelRatio);
-    this.particleSystem = particleSystem;
-    this._color = new THREE.Color();
-
-    /* ── geometry with packed attributes ───────────────────────── */
-    this.particleShaderGeo = new THREE.BufferGeometry();
-
-    /* STRIDE = 7 floats (28 bytes) */
-    const STRIDE = 7;
-    const f32 = new Float32Array(this.PARTICLE_COUNT * STRIDE);
-    const iBuffer = new THREE.InterleavedBuffer(f32, STRIDE).setUsage(
-      THREE.DynamicDrawUsage,
-    );
-
-    /* positionStart & position (for bounds) share offset 0 */
-    const positionStartAttr = new THREE.InterleavedBufferAttribute(
-      iBuffer,
-      3,
-      0,
-    );
-    this.particleShaderGeo.setAttribute("positionStart", positionStartAttr);
-    this.particleShaderGeo.setAttribute("position", positionStartAttr); // required by Three.js internals
-
-    /* size, lifeTime, startTime share offset 3 */
-    const sizeLifeStartAttr = new THREE.InterleavedBufferAttribute(
-      iBuffer,
-      3,
-      3,
-    );
-    this.particleShaderGeo.setAttribute("sizeLifeStart", sizeLifeStartAttr);
-
-    /* colour buffer: Uint8Array, normalised */
-    const colors = new Float32Array(this.PARTICLE_COUNT * 3); // 3 bytes/particle
-    const colorAttr = new THREE.BufferAttribute(colors, 3).setUsage(
-      THREE.DynamicDrawUsage,
-    );
-    this.particleShaderGeo.setAttribute("color", colorAttr);
-
-    /* create Points object */
-    this.pointsObj3d = new THREE.Points(
-      this.particleShaderGeo,
-      this.particleSystem.particleShaderMat,
-    );
-    this.pointsObj3d.frustumCulled = false;
-    this.pointsObj3d.geometry.drawRange.count = 0; // start empty
-    this.add(this.pointsObj3d);
-
-    /* cached references for speed */
-    this.attrPositionStart = positionStartAttr;
-    this.attrMisc = sizeLifeStartAttr;
-    this.attrColor = colorAttr;
-  }
-
-  /* ---------------------------------------------------------------------- */
-  /*  Spawn                                                                 */
-  /* ---------------------------------------------------------------------- */
-  spawnParticle(timeSeconds, opts = {}) {
-    /* bail out if ring is still totally full --------------------- */
-    const i = this.FREE_CURSOR;
-    const STRIDE = 7;
-    const base = i * STRIDE;
-    const arrF32 = this.attrPositionStart.data.array;
-
-    if (this.count === undefined) {
-      this.count = 0;
-    }
-    this.count++;
-
-    /* ---------- write packed attributes (exactly as before) ----- */
-    const pos = opts.position ?? new THREE.Vector3();
-    let size = opts.size ?? 10;
-    const life = opts.lifetime ?? 5;
-
-    if (this.particleScaleFactor) size *= this.particleScaleFactor;
-    const startT = timeSeconds;
-
-    arrF32[base + 0] = pos.x; // positionStart
-    arrF32[base + 1] = pos.y;
-    arrF32[base + 2] = pos.z;
-    arrF32[base + 3] = size; // size
-    arrF32[base + 4] = life; // lifeTime
-    arrF32[base + 5] = startT; // startTime
-
-    const arrCol = this.attrColor.array;
-    const col = this._color.set(opts.color ?? 0xffffff);
-    arrCol[i * 3 + 0] = col.r;
-    arrCol[i * 3 + 1] = col.g;
-    arrCol[i * 3 + 2] = col.b;
-
-    /* mark dirty once per spawn‑loop (same as before) ------------ */
-    this.attrPositionStart.data.needsUpdate = true;
-    this.attrColor.needsUpdate = true;
-
-    /* expand draw range only when we grow past the previous max --- */
-    if (this.pointsObj3d.geometry.drawRange.count < this.PARTICLE_COUNT)
-      ++this.pointsObj3d.geometry.drawRange.count;
-
-    /* advance FREE_CURSOR to next slot (actual cleaning in update) */
-    this.FREE_CURSOR = (i + 1) % this.PARTICLE_COUNT;
-  }
-
-  /* ------------------------------------------------------------------ */
-  /*  Frame update                                                      */
-  /* ------------------------------------------------------------------ */
-  update(timeSeconds) {
-    const STRIDE = 7;
-    const arrF32 = this.attrPositionStart.data.array;
-    let i = this.FREE_CURSOR;
-
-    // walk forward until we find a dead (or never‑used) particle
-    while (true) {
-      const base = i * STRIDE;
-      const life = arrF32[base + 4]; // lifeTime
-      const endT = arrF32[base + 5] + life; // startTime + lifeTime
-
-      if (life === 0 || timeSeconds >= endT) break; // free!
-      i = (i + 1) % this.PARTICLE_COUNT;
-      if (i === this.FREE_CURSOR) break; // entire ring still alive
-    }
-
-    this.FREE_CURSOR = i;
-  }
-
-  dispose() {
-    this.particleShaderGeo.dispose();
-  }
-}
-
-export default ParticleSystem;
