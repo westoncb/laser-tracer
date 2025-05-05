@@ -1251,8 +1251,6 @@ function drawCurrentSlide(pen, time, slideIndex, t) {
 
 // Main program function
 function program(pen, draw, time) {
-  time += 17;
-
   // Initialize on first frame
   if (frameCount === 0) {
     setBGColor(0x000005); // Almost black background

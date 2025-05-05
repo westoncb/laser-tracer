@@ -3,7 +3,14 @@
    A visualization of a living space through mathematical fields
 ================================================================= */
 
+let BOOT = true;
+
 function program(pen, draw, time) {
+  if (BOOT) {
+    setCamera({ x: 50, y: 0, z: 50 }, { x: 0, y: 0, z: 0 });
+    BOOT = false;
+  }
+
   setBGColor(0x101018);
   const t = time * 0.1;
 
