@@ -3,9 +3,6 @@ import ParticleSystem from "./particleSystem.js";
 import { gauss, deg2rad } from "../util/util.js";
 import { GLYPH_MAP } from "../util/glyphMap.js";
 
-/*───────────────────────────────────────────────────────────*/
-/* Scratch singletons – strictly local to this file         */
-/*───────────────────────────────────────────────────────────*/
 const _v1 = new THREE.Vector3(); // temp: destinations
 const _v2 = new THREE.Vector3(); // temp: directions, misc math
 const _vIn = new THREE.Vector3(); // temp: parameter conversion
@@ -119,7 +116,7 @@ class LaserTracer {
     this._rotate(_AXIS_Z, d);
   }
 
-  /*──────────────────── Pen motion (absolute) ───────────────────*/
+  /*──────────────────── Core operations ───────────────────*/
   moveTo(x, y, z) {
     _vIn.set(x, y, z);
     this.frame.pos.copy(_vIn);
@@ -131,7 +128,6 @@ class LaserTracer {
     this.frame.pos.copy(_vIn);
   }
 
-  /*──────────────────── Pen motion (relative) ───────────────────*/
   moveBy(dx, dy, dz) {
     const dest = _v1
       .set(dx, dy, dz)
@@ -231,7 +227,7 @@ class LaserTracer {
     }
   }
 
-  /*──────────────────── Particle helper ─────────────────────────*/
+  /*──────────────────── Spawning ─────────────────────────*/
   _spawnWithFuzz(base) {
     const { count, sx, sy, sz } = this.settings.fuzz;
 
@@ -259,7 +255,7 @@ class LaserTracer {
     }
   }
 
-  /*──────────────────── Tick / cleanup ──────────────────────────*/
+  /*──────────────────── Tick ──────────────────────────*/
   update(t) {
     this.timeSeconds = t;
     this.particleSystem.update(t);
@@ -281,7 +277,7 @@ class LaserTracer {
     this.particleSystem.dispose();
   }
 
-  /*──── runtime mutators (unchanged) ───────────────────────────*/
+  /*──── runtime mutators ───────────────────────────*/
   dotSize(px) {
     this.settings.dotSize = px;
     this._spawnOpts.size = px;

@@ -1,31 +1,5 @@
 import * as THREE from "three";
-
-// ---------- low-level ------------------------------------------------
-const clampByte = (x) => Math.max(0, Math.min(255, Math.round(x * 255)));
-
-/** r,g,b in 0-1 → 0xRRGGBB */
-function rgb2hex(r, g, b) {
-  return (clampByte(r) << 16) | (clampByte(g) << 8) | clampByte(b);
-}
-
-/** h,s,v in 0-1 → 0xRRGGBB */
-function hsv2hex(h, s, v) {
-  h = ((h % 1) + 1) % 1; // wrap hue
-  const i = Math.floor(h * 6);
-  const f = h * 6 - i;
-  const p = v * (1 - s);
-  const q = v * (1 - f * s);
-  const t = v * (1 - (1 - f) * s);
-  const [r, g, b] = [
-    [v, t, p],
-    [q, v, p],
-    [p, v, t],
-    [p, q, v],
-    [t, p, v],
-    [v, p, q],
-  ][i % 6];
-  return rgb2hex(r, g, b);
-}
+import { hsv2hex, rgb2hex } from "../util/util.js";
 
 /* ---------- viridis lookup + lerp --------------------------------- */
 const _viridis = [
@@ -201,18 +175,6 @@ export default class TracerLib {
 
     tracer.pop();
   }
-
-  /* ==================================================================
-     SWEEP HELPERS
-     ------------------------------------------------------------------
-     sweepLocal : profile is swept along a path whose vertices are in
-                  the *current pen frame* (inherits yaw/pitch/roll).
-
-     sweepWorld : path vertices are absolute world coordinates; sweep
-                  ignores any prior pen orientation.
-
-     Both accept `closePath` to splice last→first tangent for loops.
-  ================================================================== */
 
   /* ----------------------------------------------------------------
      LOCAL  – inherits current pen orientation
