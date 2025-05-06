@@ -257,7 +257,7 @@ function program(pen, draw, time) {
   rotation.zw = Math.cos(time * 0.09) * 0.25;
 
   // Configure pen for the base visualization
-  pen.dotSize(4).traceGap(0.1).residue(3).fuzz(2, 0.3);
+  pen.dotSize(10).traceGap(0.2).residue(3).fuzz(0);
 
   // Set up a camera that moves in a complex pattern
   const camX = Math.sin(time * 0.3) * 20;
@@ -291,9 +291,9 @@ function program(pen, draw, time) {
       pen
         .push()
         .colorHSV(color.hue, color.sat, color.val)
-        .dotSize(5 + Math.sin(time + s) * 0.5)
+        .dotSize(10 + Math.sin(time + s) * 0.5)
         .residue(2 + s * 0.5)
-        .fuzz(2, 0.2);
+        .fuzz(0);
 
       // Project to 3D and draw
       const pos = rotated.project3D(15);
@@ -350,7 +350,7 @@ function program(pen, draw, time) {
           .colorHSV(color.hue, color.sat, color.val)
           .dotSize(size)
           .residue(lifespan)
-          .fuzz(Math.max(1, 3 * (1 - dist / 40)), 0.5);
+          .fuzz(0);
 
         // Project to 3D and draw
         const pos = p4d.project3D(15);
@@ -362,7 +362,7 @@ function program(pen, draw, time) {
   }
 
   // PART 3: Draw connecting traces between close points
-  pen.push().dotSize(3).traceGap(0.2).residue(1).fuzz(1, 0.2);
+  pen.push().dotSize(5).traceGap(0.2).residue(1).fuzz(0);
 
   // Create temporary array of visible points for connections
   const visiblePoints = [];
@@ -439,9 +439,9 @@ function program(pen, draw, time) {
 
     pen
       .push()
-      .dotSize(5)
+      .dotSize(15)
       .residue(0.5)
-      .fuzz(15, 6)
+      .fuzz(0)
       .colorHSV((time * 0.2) % 1, 0.3, 0.9);
 
     draw.dot(pos);
