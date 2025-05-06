@@ -14,7 +14,7 @@ const _AXIS_X = new THREE.Vector3(1, 0, 0);
 const _AXIS_Y = new THREE.Vector3(0, 1, 0);
 const _AXIS_Z = new THREE.Vector3(0, 0, 1);
 
-const MAX_PARTICLES = 1_000_000; // let the GPU scream
+const MAX_PARTICLES = 500_000; // let the GPU scream
 
 /*=====================================================================*/
 class LaserTracer {
@@ -250,13 +250,17 @@ class LaserTracer {
 
     /* fuzz copies */
     for (let i = 0; i < count; i++) {
-      pos.set(base.x + gauss() * 0, base.y + gauss() * 0, base.z + gauss() * 0);
+      pos.set(
+        base.x + gauss() * sx,
+        base.y + gauss() * sy,
+        base.z + gauss() * sz,
+      );
       ps.spawnParticle(this.timeSeconds, opts);
     }
   }
 
   /*──────────────────── Tick / cleanup ──────────────────────────*/
-  update(t, renderer) {
+  update(t) {
     this.timeSeconds = t;
     this.particleSystem.update(t);
   }
