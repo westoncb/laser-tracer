@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-
-import TracerManager from "../core/tracerManager.js";
+import LaserTracer from "../core/laserTracer.js";
 import TracerVM from "../core/tracerVM.js";
 import TracerLib from "../core/tracerLib.js";
 
@@ -25,7 +24,7 @@ export default function LaserCanvas({
   /* ---------- persistent refs ------------------------------------ */
   const mountRef = useRef(null);
   const vmRef = useRef(null);
-  const tracerMgrRef = useRef(null);
+  const tracerRef = useRef(null);
   const tracerLibRef = useRef(null);
   const rafIdRef = useRef(null);
 
@@ -65,10 +64,10 @@ export default function LaserCanvas({
     controls.dampingFactor = 0.12;
     controlsRef.current = controls;
 
-    /* --- Tracer manager + scene graph --------------------------- */
-    const tracerMgr = new TracerManager();
-    tracerMgr.attachToScene(scene);
-    tracerMgrRef.current = tracerMgr;
+    /* --- Tracer + scene graph --------------------------- */
+    const tracer = new LaserTracer();
+    scene.add(tracer.getSceneGraphNode());
+    tracerRef.current = tracer;
 
     const tracerLib = new TracerLib(renderer, camera, controls);
     tracerLibRef.current = tracerLib;
@@ -98,8 +97,8 @@ export default function LaserCanvas({
         const deltaSeconds = (now - lastTimeRef.current) * 0.001;
         lastTimeRef.current = now;
         elapsedTime += deltaSeconds;
-        tracerMgr.update(elapsedTime);
-        vm.tick(elapsedTime, tracerMgr.getTracer("laser"), tracerLib);
+        tracerRef.current.update(elapsedTime);
+        vm.tick(elapsedTime, tracerRef.current, tracerLib);
       }
       tracerLibRef.current.tickControls(elapsedTime);
       renderer.render(scene, camera);
@@ -112,7 +111,7 @@ export default function LaserCanvas({
       cancelAnimationFrame(rafIdRef.current);
       window.removeEventListener("resize", resize);
 
-      tracerMgr.dispose(scene);
+      tracer.dispose();
       vm.dispose();
       controls.dispose?.();
       renderer.dispose();
@@ -124,12 +123,16 @@ export default function LaserCanvas({
   /* ---------- recompile when user edits -------------------------- */
   useEffect(() => {
     vmRef.current?.loadSource(srcCode);
-    tracerMgrRef.current.getTracer("laser").moveTo(0, 0, 0);
+    tracerRef.current.moveTo(0, 0, 0);
   }, [srcCode]);
 
   /* ---------- program switch: reset state ------------------------ */
   useEffect(() => {
-    tracerMgrRef.current?.reset(sceneRef.current);
+    // reset LaserTracer
+    tracerRef.current?.dispose();
+    tracerRef.current = new LaserTracer();
+    sceneRef.current.add(tracerRef.current.getSceneGraphNode());
+
     elapsedTime = 0;
 
     /* --- also reset camera & controls --------------------------- */
