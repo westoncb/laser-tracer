@@ -10,6 +10,7 @@ const styles = {
     color: 0xaa88ff,
     dotSize: 4,
     traceGap: 0.1,
+    fuzz: [0, 0.1],
     residue: 6,
   },
   mainBeam: {
