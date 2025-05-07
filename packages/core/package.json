@@ -1,7 +1,8 @@
 {
-  "name": "core",
+  "name": "@laser-tracer/core",
   "version": "1.0.0",
   "private": false,
+  "main": "./src/index.js",
   "type": "module",
   "description": "",
   "keywords": [],
@@ -21,7 +22,8 @@
   ],
   "exports": {
     ".": {
-      "import": "./dist/laser-tracer.es.js"
+      "import": "./src/index.js",
+      "require": "./src/index.js"
     }
   },
   "dependencies": {

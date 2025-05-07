@@ -2,6 +2,7 @@ import * as THREE from "three";
 import ParticleSystem from "./particleSystem.js";
 import { gauss, deg2rad } from "./util.js";
 import { GLYPH_MAP } from "./glyphMap.js";
+import * as macros from "./macros.js";
 
 const _v1 = new THREE.Vector3(); // temp: destinations
 const _v2 = new THREE.Vector3(); // temp: directions, misc math
@@ -14,7 +15,7 @@ const _AXIS_Z = new THREE.Vector3(0, 0, 1);
 const MAX_PARTICLES = 500_000; // let the GPU scream
 
 /*=====================================================================*/
-class LaserTracer {
+class Pen {
   constructor() {
     /* ── scene graph ------------------------------------------------ */
     this.particleSystem = new ParticleSystem({ maxParticles: MAX_PARTICLES });
@@ -303,4 +304,6 @@ class LaserTracer {
   }
 }
 
-export default LaserTracer;
+Object.assign(Pen.prototype, macros);
+
+export default Pen;

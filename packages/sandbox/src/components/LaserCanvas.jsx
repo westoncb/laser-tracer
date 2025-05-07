@@ -1,9 +1,6 @@
 import { useEffect, useRef } from "react";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import LaserTracer from "../core/laserTracer.js";
-import TracerVM from "../core/tracerVM.js";
-import TracerLib from "../core/tracerLib.js";
+import { System } from "@laser-tracer/core";
+import TracerVM from "../tracerVM.js";
 
 let elapsedTime = 0;
 
@@ -13,7 +10,7 @@ let elapsedTime = 0;
  * srcCode       – user program string
  * activeProgram – identifier that changes when user switches programs
  * compileErrCb  – function(errString|null) → void   (banner setter)
- * className     – css class for outer div
+ * className     – optional css class for outer div
  */
 export default function LaserCanvas({
   srcCode,
@@ -23,128 +20,84 @@ export default function LaserCanvas({
 }) {
   /* ---------- persistent refs ------------------------------------ */
   const mountRef = useRef(null);
+  const systemRef = useRef(null);
   const vmRef = useRef(null);
-  const tracerRef = useRef(null);
-  const tracerLibRef = useRef(null);
   const rafIdRef = useRef(null);
 
-  const cameraRef = useRef(null);
-  const controlsRef = useRef(null);
-  const sceneRef = useRef(null);
-
   const lastTimeRef = useRef(performance.now());
-  const hasErrorRef = useRef(false); // track compile‑broken state
+  const hadCompileErrRef = useRef(false);
 
   const handleCompileErr = (errStr) => {
-    hasErrorRef.current = Boolean(errStr);
+    hadCompileErrRef.current = Boolean(errStr);
     if (!errStr) lastTimeRef.current = performance.now(); // reset Δt
     compileErrCb?.(errStr);
   };
 
-  /* ---------- first‑mount boot‑strap ------------------------------ */
+  /* ---------- mount / unmount ----------------------------------- */
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
 
-    /* --- Three.js scene / camera / renderer ---------------------- */
-    const scene = new THREE.Scene();
-    sceneRef.current = scene;
-    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
-    camera.position.set(0, 0, 150);
-    cameraRef.current = camera;
+    /* --- bootstrap System -------------------------------------- */
+    const sys = new System();
+    const { pen, scene } = sys.init(mount, { renderMode: "light" });
+    systemRef.current = sys;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.debug.checkShaderErrors = true;
-    mount.appendChild(renderer.domElement);
-
-    /* --- OrbitControls ------------------------------------------ */
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.12;
-    controlsRef.current = controls;
-
-    /* --- Tracer + scene graph --------------------------- */
-    const tracer = new LaserTracer();
-    scene.add(tracer.getSceneGraphNode());
-    tracerRef.current = tracer;
-
-    const tracerLib = new TracerLib(renderer, camera, controls);
-    tracerLibRef.current = tracerLib;
-
-    /* --- QuickJS VM --------------------------------------------- */
+    /* --- QuickJS VM ------------------------------------------- */
     const vm = new TracerVM(handleCompileErr);
     vmRef.current = vm;
+    vm.init().then(() => vm.loadSource(srcCode));
 
-    vm.init().then(() => {
-      vm.loadSource(srcCode);
-    });
-
-    /* --- resize helper ------------------------------------------ */
-    const resize = () => {
-      const { clientWidth: w, clientHeight: h } = mount;
-      if (h === 0) return;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    /* --- RAF loop ----------------------------------------------- */
+    /* --- RAF loop --------------------------------------------- */
     const animate = (now) => {
-      if (!hasErrorRef.current) {
-        const deltaSeconds = (now - lastTimeRef.current) * 0.001;
+      if (!hadCompileErrRef.current) {
+        const dt = (now - lastTimeRef.current) * 0.001;
         lastTimeRef.current = now;
-        elapsedTime += deltaSeconds;
-        tracerRef.current.update(elapsedTime);
-        vm.tick(elapsedTime, tracerRef.current, tracerLib);
+        elapsedTime += dt;
+
+        const curSys = systemRef.current;
+        curSys.tick(dt);
+
+        const { pen, scene } = curSys; // keep VM in sync
+        vm.tick(elapsedTime, pen, scene);
       }
-      tracerLibRef.current.tickControls(elapsedTime);
-      renderer.render(scene, camera);
       rafIdRef.current = requestAnimationFrame(animate);
     };
     rafIdRef.current = requestAnimationFrame(animate);
 
-    /* --- cleanup ------------------------------------------------- */
+    /* --- cleanup ---------------------------------------------- */
     return () => {
       cancelAnimationFrame(rafIdRef.current);
-      window.removeEventListener("resize", resize);
-
-      tracer.dispose();
+      sys.dispose();
       vm.dispose();
-      controls.dispose?.();
-      renderer.dispose();
-      mount.removeChild(renderer.domElement);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // mount‑once
+  }, []); // mount-once
 
   /* ---------- recompile when user edits -------------------------- */
   useEffect(() => {
     vmRef.current?.loadSource(srcCode);
-    tracerRef.current.moveTo(0, 0, 0);
+    // Pop pen back to origin for a clean slate
+    systemRef.current?.pen?.moveTo(0, 0, 0);
   }, [srcCode]);
 
   /* ---------- program switch: reset state ------------------------ */
   useEffect(() => {
-    // reset LaserTracer
-    tracerRef.current?.dispose();
-    tracerRef.current = new LaserTracer();
-    sceneRef.current.add(tracerRef.current.getSceneGraphNode());
+    const mount = mountRef.current;
+    if (!mount) return;
 
+    // Dispose and recreate System to ensure pristine state
+    systemRef.current?.dispose();
+    const sys = new System();
+    const { pen, scene } = sys.init(mount, { renderMode: "light" });
+    systemRef.current = sys;
+
+    // Reset timer so animations start from t=0
     elapsedTime = 0;
+    lastTimeRef.current = performance.now();
 
-    /* --- also reset camera & controls --------------------------- */
-    const cam = cameraRef.current;
-    if (cam) {
-      cam.position.set(0, 0, 150);
-      cam.lookAt(0, 0, 0);
-      cam.updateProjectionMatrix();
-    }
-
-    const ctrls = controlsRef.current;
-    ctrls?.reset(); // OrbitControls has its own reset()
+    // Recompile script in the new VM context
+    vmRef.current?.loadSource(srcCode);
   }, [activeProgram]);
 
   /* ---------- render -------------------------------------------- */

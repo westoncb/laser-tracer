@@ -96,12 +96,17 @@ function buildProgramWrapper(userSource) {
 /* 3 · QuickJS error → string                                         */
 /* ------------------------------------------------------------------ */
 function stringifyQJSError(ctx, errHandle) {
+  // Convert the QuickJS handle into a native JS value
   const dumped = ctx.dump(errHandle);
-  if (typeof dumped === "string") return dumped;
-  if (dumped && typeof dumped === "object") {
+
+  // If it’s a proper Error, keep its message + stack
+  if (dumped && typeof dumped === "object" && "stack" in dumped) {
     const { name = "Error", message = "", stack = "" } = dumped;
     return `${name}: ${message}${stack ? "\n" + stack : ""}`;
   }
+
+  // Fallbacks
+  if (typeof dumped === "string") return dumped;
   try {
     return JSON.stringify(dumped);
   } catch {
@@ -171,7 +176,7 @@ function bindAllHostFns(ctx) {
       if (_tracer && typeof _tracer[op] === "function") {
         _tracer[op](...args);
       } else if (_lib && typeof _lib[op] === "function") {
-        _lib[op](_tracer, ...args);
+        _lib[op](...args);
       }
     });
     ctx.setProp(ctx.global, op, fn, false);
@@ -261,10 +266,13 @@ export default class TracerVM {
     tMs.dispose();
 
     if (r.error) {
-      this._enterError(stringifyQJSError(this.ctx, r.error));
+      const full = stringifyQJSError(this.ctx, r.error);
+
+      // 🔴 show full Error object (with stack trace) in devtools
+      console.error("[LaserTracer VM]", this.ctx.dump(r.error));
+
+      this._enterError(full);
       r.error.dispose();
-    } else {
-      r.value?.dispose();
     }
 
     tracer._endTick();

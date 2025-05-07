@@ -1,2 +1,6 @@
 packages:
-  - "packages/*"
+  - packages/*
+ignoredBuiltDependencies:
+  - esbuild
+overrides:
+  core: link:packages/core

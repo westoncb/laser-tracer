@@ -1,5 +1,5 @@
 {
-  "name": "sandbox",
+  "name": "@laser-tracer/sandbox",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,6 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@jitl/quickjs-singlefile-browser-release-sync": "^0.31.0",
+    "@laser-tracer/core": "workspace:*",
+    "@monaco-editor/react": "^4.7.0",
+    "quickjs-emscripten-core": "^0.31.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
@@ -22,6 +26,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "vite": "^6.3.1",
     "vite-plugin-wasm": "^3.4.1"
   }
 }
