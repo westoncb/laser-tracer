@@ -1,25 +1,13 @@
 import * as THREE from "three";
-import spriteUrl from "../assets/particle2.png"; // feather mask α
-import matcapUrl from "../assets/matcap_shiny.png"; // 512×512 mat-cap
-import { packOct16 } from "../util/util.js";
+import spriteUrl from "./assets/particle2.png";
+import matcapUrl from "./assets/matcap_shiny.png"; // 512×512 mat-cap
+import { packOct16 } from "./util.js";
 import { getSolidParticleMaterial } from "./materials/solidParticleMaterial";
 import { getLightParticleMaterial } from "./materials/lightParticleMaterial";
 
-/* -- main system class --------------------------------------------------- */
-
-/*  SolidParticleSystem_paged.js
- *  ---------------------------------------------------------------
- *  One ring-buffer spread over N small VBO “pages”.
- *  Each page is ≤ 2.1 MiB so orphaning it every frame never stalls.
- */
-
-/* pick a page size that stays < 4 MiB per attribute --------------- */
-const PAGE_VERTS = 60_000; // 60 k × 36 B ≈ 2.1 MiB
+const PAGE_VERTS = 60_000;
 const PIXEL_SCALE = Math.sqrt(window.devicePixelRatio);
 
-/* ----------------------------------------------------------------- */
-/*  Helper: one self-contained page                                  */
-/* ----------------------------------------------------------------- */
 class Page {
   constructor(pageIndex, pageVerts, sharedMaterial) {
     this.index = pageIndex;

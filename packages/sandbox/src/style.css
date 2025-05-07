@@ -118,6 +118,15 @@ body,
     min-width: 0; /* allow shrink */
 }
 
+/* existing rules … */
+
+.canvas-pane canvas {
+    flex: 1 1 auto; /* make the canvas itself the flex child */
+    width: 100%;
+    height: 100%;
+    display: block; /* remove inline-element gaps */
+}
+
 /* ================================================================
    PHONE  (< 768 px)
 ================================================================ */

@@ -1,0 +1,32 @@
+{
+  "name": "@laser-tracer/core",
+  "version": "1.0.0",
+  "private": false,
+  "main": "./src/index.js",
+  "type": "module",
+  "description": "",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.10.0",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite dev"
+  },
+  "devDependencies": {
+    "vite": "^6.3.1"
+  },
+  "files": [
+    "dist/",
+    "src/assets/"
+  ],
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "require": "./src/index.js"
+    }
+  },
+  "dependencies": {
+    "three": "^0.176.0"
+  }
+}
