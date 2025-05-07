@@ -2,188 +2,221 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import Pen from "./pen.js";
 
-// -----------------------------------------------------------------------------
-// Helper: small façade so user code can call scene.setBGColor(), orbitCamera(), …
-// -----------------------------------------------------------------------------
-export class SceneFacade {
-  constructor(renderer, camera, orbitControls) {
-    this._renderer = renderer;
-    this._camera = camera;
-    this._orbit = orbitControls;
+/* =============================================================================
+ * SceneAPI ­– tiny façade so user programs can call setBGColor(), orbitCamera()
+ * ===========================================================================*/
+export class SceneAPI {
+  constructor(renderer, camera, orbit) {
+    this._r = renderer;
+    this._c = camera;
+    this._o = orbit;
   }
 
+  /** Solid background (pass 0xRRGGBB). */
   setBGColor(hex) {
-    this._renderer.setClearColor(hex);
+    this._r.setClearColor(hex);
     return this;
   }
 
-  setCamera(px, py, pz, lx, ly, lz) {
-    this._camera.position.set(px, py, pz);
-    this._camera.lookAt(lx, ly, lz);
-    if (this._orbit) {
-      this._orbit.target.set(lx, ly, lz);
-      this._orbit.update();
+  /**
+   * Set camera position & look-at.
+   */
+  setCamera(pos, look) {
+    const { x: px, y: py, z: pz } = pos;
+    const { x: lx, y: ly, z: lz } = look;
+    this._c.position.set(px, py, pz);
+    this._c.lookAt(lx, ly, lz);
+    if (this._o) {
+      this._o.target.set(lx, ly, lz);
+      this._o.update();
     }
     return this;
   }
 
   /**
    * Convenience polar-orbit wrapper.
-   * @param {Object} center {x,y,z}
-   * @param {number} radius world units
-   * @param {number} azDeg  azimuth degrees (0° = +X, 90° = +Z)
-   * @param {number} elDeg  elevation degrees (0° = horizon, 90° = zenith)
+   * 0° azimuth = +X, 90° = +Z. Elevation 0° = horizon.
    */
   orbitCamera(center, radius, azDeg, elDeg) {
     const az = THREE.MathUtils.degToRad(azDeg);
     const el = THREE.MathUtils.degToRad(elDeg);
     const rCos = radius * Math.cos(el);
-    const pos = {
-      x: center.x + rCos * Math.cos(az),
-      y: center.y + radius * Math.sin(el),
-      z: center.z + rCos * Math.sin(az),
-    };
-    this.setCamera(pos, center);
-    return this;
+
+    const px = center.x + rCos * Math.cos(az);
+    const py = center.y + radius * Math.sin(el);
+    const pz = center.z + rCos * Math.sin(az);
+
+    return this.setCamera(
+      { x: px, y: py, z: pz },
+      { x: center.x, y: center.y, z: center.z },
+    );
   }
 }
 
-// -----------------------------------------------------------------------------
-// System: public entry point
-// -----------------------------------------------------------------------------
+/* =============================================================================
+ * System – public entry-point
+ * ===========================================================================*/
 export default class System {
   constructor() {
-    // everything lazy-init so users can new System() early
+    /* public handles – populated by init() */
+    this.pen = null;
+    this.scene = null;
+
+    /* private state */
     this._initialized = false;
     this._rafId = null;
-
-    // runtime pointers
+    this._ownsCanvas = false;
+    this._resizeHndl = null;
     this._renderer = null;
     this._scene = null;
     this._camera = null;
     this._orbit = null;
-
-    this.pen = null; // public handle to drawing DSL
-    this.scene = null; // public SceneFacade instance
-
-    // bookkeeping for headless mode
-    this._accum = 0; // seconds of simulation time passed
+    this._accum = 0; // seconds of simulation time
+    this._lastMs = 0; // last RAF timestamp
   }
 
   /**
-   * Boot-strap Three.js and create core objects.
+   * Initialise WebGL, Pen & scene.
    *
-   * @param {HTMLCanvasElement|HTMLElement} canvasEl – target element.  If a <canvas>
-   *   is supplied we use it; otherwise we inject a new canvas child.
-   * @param {Object} opts
-   *   maxParticles  – override default 500k (forwarded to Pen)
-   *   renderMode    – "solid" | "light" (default "light")
-   * @returns {{ pen: Pen, scene: SceneFacade }}
+   * @param {HTMLCanvasElement|HTMLElement} mount – canvas or parent element.
+   * @param {{ maxParticles?:number, renderMode?:"solid"|"light" }} opts
    */
-  init(canvasEl, opts = {}) {
+  init(mount, opts = {}) {
     if (this._initialized) throw new Error("System.init() called twice");
     this._initialized = true;
 
     const { maxParticles = 500_000, renderMode = "light" } = opts;
 
-    // 1. Three renderer --------------------------------------------------------
-    let canvasTarget = canvasEl;
-    if (!(canvasEl instanceof HTMLCanvasElement)) {
-      // if mount is a DIV, create internal canvas
-      canvasTarget = document.createElement("canvas");
-      canvasEl.appendChild(canvasTarget);
+    /* ------------------------------------------------------------------ renderer */
+    this._ownsCanvas = !(mount instanceof HTMLCanvasElement);
+    let canvas = mount;
+    if (this._ownsCanvas) {
+      canvas = document.createElement("canvas");
+      mount.appendChild(canvas);
     }
+
     const renderer = new THREE.WebGLRenderer({
-      canvas: canvasTarget,
+      canvas,
       antialias: true,
       alpha: true,
     });
     this._renderer = renderer;
 
-    // 2. Scene & camera --------------------------------------------------------
+    /* ------------------------------------------------------------------ scene & camera */
     const scene = new THREE.Scene();
-    this._scene = scene;
-
     const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
     camera.position.set(0, 0, 150);
+    this._scene = scene;
     this._camera = camera;
 
-    // 3. OrbitControls ---------------------------------------------------------
+    /* ------------------------------------------------------------------ controls */
     const orbit = new OrbitControls(camera, renderer.domElement);
     orbit.enableDamping = true;
     orbit.dampingFactor = 0.12;
     this._orbit = orbit;
 
-    // 4. Responsive resize -----------------------------------------------------
+    /* ------------------------------------------------------------------ resize */
     const resize = () => {
-      const w = renderer.domElement.clientWidth;
-      const h = renderer.domElement.clientHeight;
-      if (h === 0) return;
+      const el = renderer.domElement;
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (!h) return; // still collapsed
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, h, false /* do not set style */);
+      renderer.setSize(w, h, false); // do not touch <canvas> style
     };
     window.addEventListener("resize", resize);
     resize();
+    this._resizeHndl = resize;
 
-    console.log("renderMode", renderMode);
-
-    // 5. Pen & scene graph -----------------------------------------------------
+    /* ------------------------------------------------------------------ pen & API */
     this.pen = new Pen({ maxParticles, renderMode });
     scene.add(this.pen.getSceneGraphNode());
-
-    // 6. Scene façade ----------------------------------------------------------
-    this.scene = new SceneFacade(renderer, camera, orbit);
+    this.scene = new SceneAPI(renderer, camera, orbit);
 
     return { pen: this.pen, scene: this.scene };
   }
 
   /**
-   * Start an internal RAF loop.  The supplied callback runs *after* System has
-   * ticked its internals and *before* the frame is rendered.
+   * Start automatic render-loop. Returns a **stop()** function that cancels RAF
+   * but keeps resources alive.
+   *
+   * @param {(pen, scene, t)=>void} frameCb – runs *after* internal tick,
+   *                                          receives accumulated seconds.
    */
-  run(frameHandler) {
+  run(frameCb) {
     if (!this._initialized) throw new Error("System.run() before init()");
-    if (this._rafId !== null) throw new Error("System is already running");
+    if (this._rafId !== null) throw new Error("System already running");
 
-    let last = performance.now();
     const loop = (now) => {
-      const dt = (now - last) * 0.001;
-      last = now;
+      /* clamp dt to avoid simulation blows after inactive tabs */
+      const dt = Math.min((now - this._lastMs) * 0.001, 0.05);
+      this._lastMs = now;
       this.tick(dt);
-      if (frameHandler) frameHandler(this.pen, this.scene, this._accum);
+      frameCb?.(this.pen, this.scene, this._accum);
       this._rafId = requestAnimationFrame(loop);
     };
+
+    this._lastMs = performance.now();
     this._rafId = requestAnimationFrame(loop);
+
+    /* return stop() */
+    return () => {
+      if (this._rafId !== null) {
+        cancelAnimationFrame(this._rafId);
+        this._rafId = null;
+      }
+    };
   }
 
   /** Advance simulation by dt (seconds) and render a frame. */
   tick(dt) {
     if (!this._initialized) throw new Error("System.tick() before init()");
 
-    this._accum += dt;
-    // 1. update pen (particle life, etc.)
+    this._accum += dt; // Pen expects absolute time
     this.pen.update(this._accum);
 
-    // 2. let OrbitControls finish damping (if user hasn’t taken manual control)
-    this._orbit.update();
-
-    // 3. render scene
+    this._orbit.update(); // damping
     this._renderer.render(this._scene, this._camera);
   }
 
-  /** Stop RAF, dispose GL resources, remove DOM nodes. */
+  /** Full teardown – cancels RAF, detaches events, releases GPU memory. */
   dispose() {
-    if (this._rafId !== null) cancelAnimationFrame(this._rafId);
+    /* stop RAF if running */
+    if (this._rafId !== null) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
 
-    // 🔹 remove the canvas from DOM if we created it
-    const canvas = this._renderer?.domElement;
-    canvas?.parentElement?.removeChild(canvas);
+    /* window listeners */
+    if (this._resizeHndl) {
+      window.removeEventListener("resize", this._resizeHndl);
+      this._resizeHndl = null;
+    }
 
+    /* owned canvas removal */
+    if (this._ownsCanvas) {
+      const el = this._renderer?.domElement;
+      el?.parentElement?.removeChild(el);
+    }
+
+    /* Three-side disposals */
     this._orbit?.dispose();
     this.pen?.dispose();
-    this._renderer?.dispose();
-    this._scene?.clear();
+
+    // dispose geometries & materials in the scene graph
+    this._scene?.traverse((obj) => {
+      if (obj.geometry) obj.geometry.dispose?.();
+      if (obj.material) {
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach((m) => m.dispose?.());
+        } else obj.material.dispose?.();
+      }
+    });
+
+    this._renderer?.renderLists?.dispose?.();
+    this._renderer?.dispose?.();
+    this._scene?.clear?.();
 
     this._initialized = false;
   }

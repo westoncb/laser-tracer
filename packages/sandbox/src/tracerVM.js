@@ -82,7 +82,7 @@ const draw = {
 
 // ---- colour utilities (kept from v2) ------------------------------
 const setBGColor = hex => _h.setBGColor(hex);
-const setCamera = (pos, look) => _h.setCamera(pos.x, pos.y, pos.z, look.x, look.y, look.z);
+const setCamera = (pos, look) => _h.setCamera(pos, look);
 const orbitCamera = (center, radius, azDeg, elDeg) => _h.orbitCamera(center, radius, azDeg, elDeg);
 
 globalThis.draw = draw;
@@ -149,7 +149,7 @@ function makeDecoders(ctx) {
     colorCubehelix: [N, N, N, N],
     colorHex: [N],
     setBGColor: [N],
-    setCamera: [N, N, N, N, N, N],
+    setCamera: [D, D],
     orbitCamera: [D, N, N, N],
 
     /* ── brush setters ───────────────────────────────────────── */

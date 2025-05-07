@@ -1,111 +1,134 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { System } from "@laser-tracer/core";
-import TracerVM from "../tracerVM.js";
+import TracerVM from "../tracerVM";
 
-let elapsedTime = 0;
+/* centralised teardown */
+function disposeAll(systemRef, vmRef, readyRef, setVmReady, hadErrRef) {
+  systemRef.current?.dispose();
+  vmRef.current?.dispose();
+  readyRef.current = false;
+  setVmReady(false);
+  hadErrRef.current = false;
+}
 
-/**
- * Props
- * ─────
- * srcCode       – user program string
- * activeProgram – identifier that changes when user switches programs
- * compileErrCb  – function(errString|null) → void   (banner setter)
- * className     – optional css class for outer div
- */
 export default function LaserCanvas({
   srcCode,
   activeProgram,
   compileErrCb,
   className,
+  renderMode: initialMode = "light",
 }) {
-  /* ---------- persistent refs ------------------------------------ */
+  /* ---------------------------------------------------------------- UI */
+  const [mode, setMode] = useState(initialMode); // "light" | "solid"
+
+  /* ---------------------------------------------------------- refs/state */
   const mountRef = useRef(null);
   const systemRef = useRef(null);
   const vmRef = useRef(null);
-  const rafIdRef = useRef(null);
+  const readyRef = useRef(false);
+  const hadErrRef = useRef(false);
+  const [vmReady, setVmReady] = useState(false);
 
-  const lastTimeRef = useRef(performance.now());
-  const hadCompileErrRef = useRef(false);
-
-  const handleCompileErr = (errStr) => {
-    hadCompileErrRef.current = Boolean(errStr);
-    if (!errStr) lastTimeRef.current = performance.now(); // reset Δt
-    compileErrCb?.(errStr);
-  };
-
-  /* ---------- mount / unmount ----------------------------------- */
-  useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
-
-    /* --- bootstrap System -------------------------------------- */
+  /* -------------------------------------------------- engine bootstrap */
+  const startEngine = useCallback(async () => {
+    /* 1 · System ----------------------------------------------------- */
     const sys = new System();
-    const { pen, scene } = sys.init(mount, { renderMode: "light" });
     systemRef.current = sys;
+    sys.init(mountRef.current, { renderMode: mode });
 
-    /* --- QuickJS VM ------------------------------------------- */
-    const vm = new TracerVM(handleCompileErr);
-    vmRef.current = vm;
-    vm.init().then(() => vm.loadSource(srcCode));
-
-    /* --- RAF loop --------------------------------------------- */
-    const animate = (now) => {
-      if (!hadCompileErrRef.current) {
-        const dt = (now - lastTimeRef.current) * 0.001;
-        lastTimeRef.current = now;
-        elapsedTime += dt;
-
-        const curSys = systemRef.current;
-        curSys.tick(dt);
-
-        const { pen, scene } = curSys; // keep VM in sync
-        vm.tick(elapsedTime, pen, scene);
+    sys.run((pen, scene, t) => {
+      if (readyRef.current && !hadErrRef.current) {
+        vmRef.current.tick(t, pen, scene);
       }
-      rafIdRef.current = requestAnimationFrame(animate);
-    };
-    rafIdRef.current = requestAnimationFrame(animate);
+    });
 
-    /* --- cleanup ---------------------------------------------- */
-    return () => {
-      cancelAnimationFrame(rafIdRef.current);
-      sys.dispose();
-      vm.dispose();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // mount-once
+    /* 2 · VM --------------------------------------------------------- */
+    const vm = new TracerVM((err) => {
+      hadErrRef.current = Boolean(err);
+      compileErrCb?.(err);
+    });
+    vmRef.current = vm;
+    await vm.init();
+    readyRef.current = true;
+    setVmReady(true);
+  }, [mode, compileErrCb]);
 
-  /* ---------- recompile when user edits -------------------------- */
+  /* ---------------------------------------------------------- mount */
   useEffect(() => {
-    vmRef.current?.loadSource(srcCode);
-    // Pop pen back to origin for a clean slate
-    systemRef.current?.pen?.moveTo(0, 0, 0);
-  }, [srcCode]);
+    startEngine();
+    return () => disposeAll(systemRef, vmRef, readyRef, setVmReady, hadErrRef);
+  }, [startEngine]);
 
-  /* ---------- program switch: reset state ------------------------ */
+  /* ---------------------------------------------- hot-reload code */
   useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
+    if (vmReady) {
+      hadErrRef.current = false;
+      vmRef.current.loadSource(srcCode);
+      systemRef.current?.pen?.moveTo(0, 0, 0);
+    }
+  }, [srcCode, vmReady]);
 
-    // Dispose and recreate System to ensure pristine state
-    systemRef.current?.dispose();
-    const sys = new System();
-    const { pen, scene } = sys.init(mount, { renderMode: "light" });
-    systemRef.current = sys;
+  /* ----------------------- restart on activeProgram or mode change */
+  useEffect(() => {
+    if (!mountRef.current) return;
+    disposeAll(systemRef, vmRef, readyRef, setVmReady, hadErrRef);
+    startEngine();
+  }, [activeProgram, mode, startEngine]);
 
-    // Reset timer so animations start from t=0
-    elapsedTime = 0;
-    lastTimeRef.current = performance.now();
+  /* ---------------------------------------------------------- render */
+  const toolbarH = "1.5rem";
 
-    // Recompile script in the new VM context
-    vmRef.current?.loadSource(srcCode);
-  }, [activeProgram]);
-
-  /* ---------- render -------------------------------------------- */
   return (
     <div
-      ref={mountRef}
-      className={className ?? ""}
-      style={{ width: "100%", height: "100%" }}
-    />
+      className={`ltc-container ${className ?? ""}`}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        width: "100%",
+        height: "100%",
+      }}
+    >
+      {/* ── mode toolbar ─────────────────────────────────────────── */}
+      <div
+        style={{
+          height: toolbarH,
+          flex: "0 0 auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          padding: "0 0.75rem",
+          gap: "1rem",
+          fontSize: "0.8rem",
+          background: "rgba(0,0,0,0.05)",
+          userSelect: "none",
+        }}
+      >
+        {/* radio group */}
+        {["light", "solid"].map((opt) => (
+          <label
+            key={opt}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="radio"
+              name="ltc-render-mode"
+              value={opt}
+              checked={mode === opt}
+              onChange={() => setMode(opt)}
+              style={{ cursor: "pointer" }}
+            />
+            {opt.charAt(0).toUpperCase() + opt.slice(1)}
+          </label>
+        ))}
+      </div>
+
+      {/* ── canvas mount ─────────────────────────────────────────── */}
+      <div ref={mountRef} style={{ flex: "1 1 auto", position: "relative" }} />
+    </div>
   );
 }

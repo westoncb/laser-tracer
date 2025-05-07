@@ -12,8 +12,6 @@ export default class ParticleSystem extends THREE.Object3D {
   constructor(opts = {}) {
     super();
 
-    console.log("opts", opts);
-
     this.MAX_PARTICLES = opts.maxParticles ?? 500_000;
 
     /* page grid -------------------------------------------------- */
