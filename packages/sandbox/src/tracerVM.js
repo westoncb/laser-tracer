@@ -61,18 +61,23 @@ const draw = {
     pen.moveTo(p0.x, p0.y, p0.z);
     pen.traceTo(p1.x, p1.y, p1.z);
     pen.pop();
+    return pen;
   },
   dot(p) {
     pen.push(); pen.moveTo(p.x, p.y, p.z); pen.dot(); pen.pop();
+    return pen;
   },
   text(str, p, h = 4) {
     pen.push();
     drawText(str, p.x, p.y, p.z, h);
     pen.pop();
+    return pen;
   },
   polyline: (pts, close=false)=> _h.polylineWorld(pts, close|0),
-  sweep: (path, prof, close=false)=>
+  sweep: (path, prof, close=false)=>{
     _h.sweepWorld(path, prof, close|0)
+    return pen;
+  }
 };
 
 // ---- colour utilities (kept from v2) ------------------------------

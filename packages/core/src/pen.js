@@ -84,6 +84,7 @@ class Pen {
       },
     };
     this.stack.push(s);
+    return this;
   }
 
   pop() {
@@ -100,33 +101,37 @@ class Pen {
     this.settings.fuzz = { ...s.settings.fuzz };
 
     this._updateSpacingCache();
+    return this;
   }
 
   /*──────────────────── Orientation ──────────────────────────────*/
   _rotate(axis, deg) {
     _q.setFromAxisAngle(axis, deg2rad(deg));
     this.frame.rot.multiply(_q);
+    return this;
   }
   yaw(d) {
-    this._rotate(_AXIS_Y, d);
+    return this._rotate(_AXIS_Y, d);
   }
   pitch(d) {
-    this._rotate(_AXIS_X, d);
+    return this._rotate(_AXIS_X, d);
   }
   roll(d) {
-    this._rotate(_AXIS_Z, d);
+    return this._rotate(_AXIS_Z, d);
   }
 
   /*──────────────────── Core operations ───────────────────*/
   moveTo(x, y, z) {
     _vIn.set(x, y, z);
     this.frame.pos.copy(_vIn);
+    return this;
   }
 
   traceTo(x, y, z) {
     _vIn.set(x, y, z);
     this._lineInternal(_vIn);
     this.frame.pos.copy(_vIn);
+    return this;
   }
 
   moveBy(dx, dy, dz) {
@@ -135,6 +140,7 @@ class Pen {
       .applyQuaternion(this.frame.rot)
       .add(this.frame.pos);
     this.moveTo(dest.x, dest.y, dest.z);
+    return this;
   }
 
   traceBy(dx, dy, dz) {
@@ -143,10 +149,12 @@ class Pen {
       .applyQuaternion(this.frame.rot)
       .add(this.frame.pos);
     this.traceTo(dest.x, dest.y, dest.z);
+    return this;
   }
 
   dot() {
     this._spawnWithFuzz(this.frame.pos);
+    return this;
   }
 
   /*──────────────────── Internal line helper ────────────────────*/
@@ -282,25 +290,31 @@ class Pen {
   dotSize(px) {
     this.settings.dotSize = px;
     this._spawnOpts.size = px;
+    return this;
   }
   traceGap(d) {
     if (d > 0) {
       this.settings.traceGap = d;
       this._updateSpacingCache();
     }
+    return this;
   }
   residue(s) {
     this.settings.residue = s;
     this._spawnOpts.lifetime = s;
+    return this;
   }
   fuzz(n = 0, sx = 4, sy = sx, sz = sx) {
     this.settings.fuzz = { count: n, sx, sy, sz };
+    return this;
   }
   colorHex(hex) {
     this.settings.color.setHex(hex >>> 0);
+    return this;
   }
   color(hex) {
     this.settings.color.setHex(hex >>> 0);
+    return this;
   }
 }
 
