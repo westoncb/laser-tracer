@@ -1,10 +1,11 @@
 {
   "name": "laser-tracer",
+  "private": true,
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "pnpm --filter @laser-tracer/core build",
+    "dev": "pnpm --filter @laser-tracer/sandbox dev"
   },
   "keywords": [],
   "author": "",
