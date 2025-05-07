@@ -8,69 +8,11 @@ import { getLightParticleMaterial } from "./materials/lightParticleMaterial";
 const PAGE_VERTS = 60_000;
 const PIXEL_SCALE = Math.sqrt(window.devicePixelRatio);
 
-class Page {
-  constructor(pageIndex, pageVerts, sharedMaterial) {
-    this.index = pageIndex;
-    this.size = pageVerts;
-
-    /* CPU arrays */
-    const posArr = new Float32Array(pageVerts * 3);
-    const miscArr = new Float32Array(pageVerts * 3);
-    const colArr = new Float32Array(pageVerts * 3);
-    const octArr = new Uint16Array(pageVerts * 2);
-
-    /* geometry & attributes */
-    const geom = new THREE.BufferGeometry();
-    const makeAttr = (arr, item, norm = false) =>
-      new THREE.BufferAttribute(arr, item, norm).setUsage(
-        THREE.StreamDrawUsage,
-      ); // orphan every update
-    geom.setAttribute("positionStart", makeAttr(posArr, 3));
-    geom.setAttribute("sizeLifeStart", makeAttr(miscArr, 3));
-    geom.setAttribute("color", makeAttr(colArr, 3));
-    geom.setAttribute("octNormal", makeAttr(octArr, 2, true));
-
-    if (!geom.drawRange) geom.drawRange = { offset: 0, count: 0 };
-
-    geom.drawRange.start = 0;
-    geom.drawRange.count = 0; // invisible until populated
-
-    this.geometry = geom;
-    this.points = new THREE.Points(geom, sharedMaterial);
-    this.points.frustumCulled = false;
-
-    /* handy refs */
-    this.attrPos = geom.getAttribute("positionStart");
-    this.attrMisc = geom.getAttribute("sizeLifeStart");
-    this.attrCol = geom.getAttribute("color");
-    this.attrOct = geom.getAttribute("octNormal");
-
-    /* dirty flag set by parent */
-    this.dirty = false;
-  }
-
-  markDirty() {
-    this.dirty = true;
-  }
-
-  upload() {
-    if (!this.dirty) return;
-    const touch = (attr) => {
-      if (!attr.updateRange) attr.updateRange = { offset: 0, count: 0 };
-      attr.updateRange.count = -1; // orphan whole page
-      attr.needsUpdate = true;
-    };
-    touch(this.attrPos);
-    touch(this.attrMisc);
-    touch(this.attrCol);
-    touch(this.attrOct);
-    this.dirty = false;
-  }
-}
-
 export default class ParticleSystem extends THREE.Object3D {
   constructor(opts = {}) {
     super();
+
+    console.log("opts", opts);
 
     this.MAX_PARTICLES = opts.maxParticles ?? 500_000;
 
@@ -93,7 +35,8 @@ export default class ParticleSystem extends THREE.Object3D {
     );
     this.lightMaterial = getLightParticleMaterial(this.spriteTex);
 
-    this.material = this.lightMaterial;
+    this.material =
+      opts.renderMode === "light" ? this.lightMaterial : this.solidMaterial;
 
     /* allocate pages -------------------------------------------- */
     this.pages = [];
@@ -176,6 +119,14 @@ export default class ParticleSystem extends THREE.Object3D {
     this.material.uniforms.uScale.value = PIXEL_SCALE;
   }
 
+  setRenderMode(mode) {
+    if (mode === "solid") {
+      this.material = this.solidMaterial;
+    } else {
+      this.material = this.lightMaterial;
+    }
+  }
+
   /* ------------------------------------------------------------ */
   dispose() {
     this.solidMaterial.dispose();
@@ -183,5 +134,65 @@ export default class ParticleSystem extends THREE.Object3D {
     for (const pg of this.pages) pg.geometry.dispose();
     this.spriteTex.dispose();
     this.matcapTex.dispose();
+  }
+}
+
+class Page {
+  constructor(pageIndex, pageVerts, sharedMaterial) {
+    this.index = pageIndex;
+    this.size = pageVerts;
+
+    /* CPU arrays */
+    const posArr = new Float32Array(pageVerts * 3);
+    const miscArr = new Float32Array(pageVerts * 3);
+    const colArr = new Float32Array(pageVerts * 3);
+    const octArr = new Uint16Array(pageVerts * 2);
+
+    /* geometry & attributes */
+    const geom = new THREE.BufferGeometry();
+    const makeAttr = (arr, item, norm = false) =>
+      new THREE.BufferAttribute(arr, item, norm).setUsage(
+        THREE.StreamDrawUsage,
+      ); // orphan every update
+    geom.setAttribute("positionStart", makeAttr(posArr, 3));
+    geom.setAttribute("sizeLifeStart", makeAttr(miscArr, 3));
+    geom.setAttribute("color", makeAttr(colArr, 3));
+    geom.setAttribute("octNormal", makeAttr(octArr, 2, true));
+
+    if (!geom.drawRange) geom.drawRange = { offset: 0, count: 0 };
+
+    geom.drawRange.start = 0;
+    geom.drawRange.count = 0; // invisible until populated
+
+    this.geometry = geom;
+    this.points = new THREE.Points(geom, sharedMaterial);
+    this.points.frustumCulled = false;
+
+    /* handy refs */
+    this.attrPos = geom.getAttribute("positionStart");
+    this.attrMisc = geom.getAttribute("sizeLifeStart");
+    this.attrCol = geom.getAttribute("color");
+    this.attrOct = geom.getAttribute("octNormal");
+
+    /* dirty flag set by parent */
+    this.dirty = false;
+  }
+
+  markDirty() {
+    this.dirty = true;
+  }
+
+  upload() {
+    if (!this.dirty) return;
+    const touch = (attr) => {
+      if (!attr.updateRange) attr.updateRange = { offset: 0, count: 0 };
+      attr.updateRange.count = -1; // orphan whole page
+      attr.needsUpdate = true;
+    };
+    touch(this.attrPos);
+    touch(this.attrMisc);
+    touch(this.attrCol);
+    touch(this.attrOct);
+    this.dirty = false;
   }
 }

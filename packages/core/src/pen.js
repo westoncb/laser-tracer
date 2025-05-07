@@ -12,13 +12,11 @@ const _AXIS_X = new THREE.Vector3(1, 0, 0);
 const _AXIS_Y = new THREE.Vector3(0, 1, 0);
 const _AXIS_Z = new THREE.Vector3(0, 0, 1);
 
-const MAX_PARTICLES = 500_000; // let the GPU scream
-
 /*=====================================================================*/
 class Pen {
-  constructor() {
+  constructor({ maxParticles, renderMode }) {
     /* ── scene graph ------------------------------------------------ */
-    this.particleSystem = new ParticleSystem({ maxParticles: MAX_PARTICLES });
+    this.particleSystem = new ParticleSystem({ maxParticles, renderMode });
     this.obj3d = new THREE.Object3D();
     this.obj3d.add(this.particleSystem);
 

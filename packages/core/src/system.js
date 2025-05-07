@@ -84,12 +84,7 @@ export default class System {
     if (this._initialized) throw new Error("System.init() called twice");
     this._initialized = true;
 
-    const {
-      maxParticles = 500_000,
-      renderMode = "light", // future use
-    } = opts;
-
-    console.log("canvasEl", canvasEl);
+    const { maxParticles = 500_000, renderMode = "light" } = opts;
 
     // 1. Three renderer --------------------------------------------------------
     let canvasTarget = canvasEl;
@@ -131,25 +126,16 @@ export default class System {
     window.addEventListener("resize", resize);
     resize();
 
+    console.log("renderMode", renderMode);
+
     // 5. Pen & scene graph -----------------------------------------------------
-    this.pen = new Pen({ maxParticles });
+    this.pen = new Pen({ maxParticles, renderMode });
     scene.add(this.pen.getSceneGraphNode());
 
     // 6. Scene façade ----------------------------------------------------------
     this.scene = new SceneFacade(renderer, camera, orbit);
 
-    // 7. Render-mode selection -------------------------------------------------
-    this.setRenderMode(renderMode);
-
     return { pen: this.pen, scene: this.scene };
-  }
-
-  /** Toggle between mat-cap solid vs light billboard shader */
-  setRenderMode(mode) {
-    if (!this.pen) return;
-    const ps = this.pen.particleSystem;
-    if (!ps) return;
-    ps.material = mode === "solid" ? ps.solidMaterial : ps.lightMaterial;
   }
 
   /**
