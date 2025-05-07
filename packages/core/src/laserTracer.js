@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import ParticleSystem from "./particleSystem.js";
-import { gauss, deg2rad } from "../util/util.js";
-import { GLYPH_MAP } from "../util/glyphMap.js";
+import { gauss, deg2rad } from "./util.js";
+import { GLYPH_MAP } from "./glyphMap.js";
 
 const _v1 = new THREE.Vector3(); // temp: destinations
 const _v2 = new THREE.Vector3(); // temp: directions, misc math
