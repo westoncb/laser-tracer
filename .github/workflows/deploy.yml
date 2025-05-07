@@ -30,8 +30,8 @@ jobs:
           node-version: 18 # or 20
           cache: pnpm
 
-      - name: Enable pnpm via Corepack
-        run: corepack enable
+      - name: Install pnpm
+        run: npm install -g pnpm
 
       # 3. Install workspace deps
       - name: Install dependencies
