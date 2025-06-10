@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import { defineConfig } from "vite";
+import { resolve } from "path";
 
 // ─────────────────────────────────────────────────────────────
 // Vite config for the *core* package (library build)
@@ -7,26 +7,36 @@ import { resolve } from 'path';
 export default defineConfig({
   build: {
     lib: {
-      // Entry file exposed to consumers (`import { System } from "@laser-tracer/core"`)
-      entry: resolve(__dirname, 'src/system.js'),
-      name: 'LaserTracer',                // UMD/IIFE global name (ignored for ES build but required)
-      fileName: (format) => `laser-tracer.${format}.js`,
-      formats: ['es']                     // ship pure ESM
+      // Correct entry point that exports your full public API
+      entry: resolve(__dirname, "src/index.js"),
+      // The global variable name for the UMD build
+      name: "LaserTracerCore",
+      // Generate different file names for each format
+      fileName: (format) => `laser-tracer-core.${format}.js`,
+      // Build for both ES module and UMD for maximum compatibility
+      formats: ["es", "umd"],
     },
 
-    // Rollup-specific tweaks (Vite delegates final bundling to Rollup)
+    // Rollup-specific tweaks
     rollupOptions: {
-      external: ['three'],                // do not bundle three.js
+      // Do not bundle three.js
+      external: ["three"],
       output: {
-        // leave asset references unchanged so consumer bundlers copy textures
-        assetFileNames: 'assets/[name][extname]'
-      }
+        // Keep asset references unchanged for consumer bundlers
+        assetFileNames: "assets/[name].[extname]",
+        // Provide the global variable name for 'three' in the UMD build
+        globals: {
+          three: "THREE",
+        },
+      },
     },
 
-    sourcemap: true                       // generate *.map alongside the bundle
+    // Generate sourcemaps for debugging
+    sourcemap: true,
   },
 
   worker: {
-    format: 'es'                          // ensure any web-worker bundles stay ESM
-  }
+    // Ensure any web-worker bundles stay ESM
+    format: "es",
+  },
 });
