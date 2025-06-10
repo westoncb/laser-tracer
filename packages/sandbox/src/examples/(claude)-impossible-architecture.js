@@ -52,7 +52,7 @@ function createStructures() {
 // Initialize
 createStructures();
 
-function program(pen, draw, time) {
+function program(pen, scene, time) {
   setBGColor(0x000810);
   rotation += 0.01;
 
@@ -373,7 +373,7 @@ function renderConnections(time) {
 // Helper function to draw architectural beams
 function drawBeam(point1, point2, thickness) {
   // Main structural line
-  draw.trace(point1, point2);
+  scene.trace(point1, point2);
 
   // Add parallel lines for thickness
   const dx = point2.x - point1.x;
@@ -388,12 +388,12 @@ function drawBeam(point1, point2, thickness) {
     let offY = dx * scale;
 
     // Draw parallel beams
-    draw.trace(
+    scene.trace(
       { x: point1.x + offX, y: point1.y + offY, z: point1.z },
       { x: point2.x + offX, y: point2.y + offY, z: point2.z },
     );
 
-    draw.trace(
+    scene.trace(
       { x: point1.x - offX, y: point1.y - offY, z: point1.z },
       { x: point2.x - offX, y: point2.y - offY, z: point2.z },
     );

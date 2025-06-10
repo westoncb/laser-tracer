@@ -1,9 +1,9 @@
 let BOOT = true;
 
 // Mathematical field-based movement inspired by shader
-function program(pen, draw, time) {
+function program(pen, scene, time) {
   if (BOOT) {
-    setCamera({ x: 0, y: 0, z: 10 }, { x: 0, y: 0, z: 0 });
+    scene.setCamera({ x: 0, y: 0, z: 10 }, { x: 0, y: 0, z: 0 });
     BOOT = false;
   }
 
@@ -12,7 +12,7 @@ function program(pen, draw, time) {
   const SQRT5 = 2.23606797749979;
   const t = time * 1;
 
-  setBGColor(0x020305);
+  scene.setBGColor(0x020305);
 
   // Create a mathematically-driven field
   function fieldVector(p) {
@@ -85,7 +85,7 @@ function program(pen, draw, time) {
     }
 
     // Draw initial point
-    draw.dot(p);
+    scene.dot(p);
 
     // Create field-guided path
     const steps = 10 + Math.floor(lens.aperture * 10);
@@ -104,7 +104,7 @@ function program(pen, draw, time) {
       };
 
       // Draw next point
-      draw.dot(p);
+      scene.dot(p);
     }
 
     pen.pop();
@@ -131,7 +131,7 @@ function program(pen, draw, time) {
       .fuzz(2, 1.0)
       .colorHSV(40 / 360, 0.3, 0.9);
 
-    draw.dot(p);
+    scene.dot(p);
     pen.pop();
   }
 
@@ -148,12 +148,12 @@ function program(pen, draw, time) {
     const lens = createLens(center);
 
     // Create fractal-like structure
-    drawFractalStructure(center, 3, lens, draw, pen, t);
+    drawFractalStructure(center, 3, lens, scene, pen, t);
   }
 }
 
 // Helper function for fractal structures
-function drawFractalStructure(center, depth, lens, draw, pen, t) {
+function drawFractalStructure(center, depth, lens, scene, pen, t) {
   if (depth <= 0) return;
 
   pen
@@ -182,11 +182,11 @@ function drawFractalStructure(center, depth, lens, draw, pen, t) {
       z: center.z + direction.z * depth * 0.5,
     };
 
-    draw.trace(center, endPoint);
+    scene.trace(center, endPoint);
 
     // Recursive branch
     if (i % 2 === 0) {
-      drawFractalStructure(endPoint, depth - 1, lens, draw, pen, t);
+      drawFractalStructure(endPoint, depth - 1, lens, scene, pen, t);
     }
   }
 
