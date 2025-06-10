@@ -8,12 +8,12 @@ const PRELUDE_VERSION = 3;
 
 const PRELUDE = String.raw`
 // ==== Laser-Tracer PRELUDE (v${PRELUDE_VERSION}) ====================
-// Single-source API:  pen.*  (raw turtle)  +  draw.* (stateless helpers)
+// Single-source API:  pen.*  (raw turtle)  +  scene.* (stateless helpers/scene utils)
 
 /* ---- host opcodes on globalThis ---------------------------------- */
 const _h = globalThis;
 
-/* ---- wrappers needed by draw.text ------------------------------- */
+/* ---- wrappers needed by scene.text ------------------------------- */
 const drawText    = (t,x,y,z,h=4)=>_h.drawText(t,x,y,z,h);
 const drawTextRel = (t,dx,dy,dz,h=4)=>_h.drawTextRel(t,dx,dy,dz,h);
 
@@ -54,8 +54,8 @@ const pen = {
 /* make pen visible inside QuickJS for debugging/REPL */
 globalThis.pen = pen;
 
-/* ────────────── stateless draw helpers ─────────────────────────── */
-const draw = {
+/* ────────────── stateless helper + scene controls ─────────────────────────── */
+const scene = {
   trace(p0, p1) {
     pen.push();
     pen.moveTo(p0.x, p0.y, p0.z);
@@ -77,15 +77,13 @@ const draw = {
   sweep: (path, prof, close=false)=>{
     _h.sweepWorld(path, prof, close|0)
     return pen;
-  }
+  },
+  setBGColor: hex => _h.setBGColor(hex),
+  setCamera: (pos, look) => _h.setCamera(pos, look),
+  orbitCamera: (center, radius, azDeg, elDeg) => _h.orbitCamera(center, radius, azDeg, elDeg),
 };
 
-// ---- colour utilities (kept from v2) ------------------------------
-const setBGColor = hex => _h.setBGColor(hex);
-const setCamera = (pos, look) => _h.setCamera(pos, look);
-const orbitCamera = (center, radius, azDeg, elDeg) => _h.orbitCamera(center, radius, azDeg, elDeg);
-
-globalThis.draw = draw;
+globalThis.scene = scene;
 `;
 
 function buildProgramWrapper(userSource) {
@@ -200,7 +198,7 @@ export default class TracerVM {
     this.hasError = false;
     this.programHandle = null;
     this.penHandle = null;
-    this.drawHandle = null;
+    this.sceneHandle = null;
   }
 
   async init() {
@@ -243,11 +241,11 @@ export default class TracerVM {
     this.programHandle?.dispose?.();
     this.programHandle = this.ctx.getProp(this.ctx.global, "program");
 
-    // fetch persistent handles to pen & draw (global objects)
+    // fetch persistent handles to pen & scene (global objects)
     this.penHandle?.dispose?.();
-    this.drawHandle?.dispose?.();
+    this.sceneHandle?.dispose?.();
     this.penHandle = this.ctx.getProp(this.ctx.global, "pen");
-    this.drawHandle = this.ctx.getProp(this.ctx.global, "draw");
+    this.sceneHandle = this.ctx.getProp(this.ctx.global, "scene");
 
     res.value.dispose();
   }
@@ -265,7 +263,7 @@ export default class TracerVM {
       this.programHandle,
       this.ctx.undefined,
       this.penHandle,
-      this.drawHandle,
+      this.sceneHandle,
       tMs,
     );
     tMs.dispose();
@@ -294,7 +292,7 @@ export default class TracerVM {
   dispose() {
     this.programHandle?.dispose?.();
     this.penHandle?.dispose?.();
-    this.drawHandle?.dispose?.();
+    this.sceneHandle?.dispose?.();
     this.ctx?.dispose();
   }
 }
