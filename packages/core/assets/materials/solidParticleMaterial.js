@@ -71,7 +71,7 @@ void main () {
   /* ---- spherical impostor, optimised ----------------------- */
   vec2  pc  = gl_PointCoord * 2.0 - 1.0;        // [-1,1]²
   float r2  = dot(pc, pc);
-  if (r2 > .95) discard;                        // outside circle (early-Z)
+  if (r2 > .85) discard;                        // outside circle (early-Z)
 
   // flat render small particles
   if (vPointSize < 1.) {
@@ -89,7 +89,7 @@ void main () {
   vec3  shade = texture2D(uMatcap, uv).rgb;
 
   /* ---- alpha: lifetime * feather, plus optional----------- */
-  // vec4  feather = texture2D(tFeather, gl_PointCoord);
+  vec4  feather = texture2D(tFeather, gl_PointCoord);
   float alpha   = vLifeLeft;
 
   if (alpha < 0.004) discard;

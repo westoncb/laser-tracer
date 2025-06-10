@@ -1,9 +1,9 @@
 import * as THREE from "three";
-import spriteUrl from "./assets/particle2.png";
-import matcapUrl from "./assets/matcap_shiny.png"; // 512×512 mat-cap
+import spriteUrl from "../assets/particle2.png";
+import matcapUrl from "../assets/matcap_shiny.png"; // 512×512 mat-cap
 import { packOct16 } from "./util.js";
-import { getSolidParticleMaterial } from "./materials/solidParticleMaterial";
-import { getLightParticleMaterial } from "./materials/lightParticleMaterial";
+import { getSolidParticleMaterial } from "../assets/materials/solidParticleMaterial.js";
+import { getLightParticleMaterial } from "../assets/materials/lightParticleMaterial.js";
 
 const PAGE_VERTS = 60_000;
 const PIXEL_SCALE = Math.sqrt(window.devicePixelRatio);
