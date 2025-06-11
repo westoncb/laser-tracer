@@ -12,12 +12,12 @@ const REM = 0.577215664901532; // REM constant (dream phase)
 
 let BOOT = true;
 
-function program(pen, draw, time) {
-  setBGColor(0x000205);
+function program(pen, scene, time) {
+  scene.setBGColor(0x000205);
   const t = time * 1; // Original slowed dream-time: 0.1
 
   if (BOOT) {
-    setCamera({ x: 0, y: 0, z: 24 }, { x: 0, y: 0, z: 0 });
+    scene.setCamera({ x: 0, y: 0, z: 24 }, { x: 0, y: 0, z: 0 });
     BOOT = false;
   }
 
@@ -205,7 +205,7 @@ function program(pen, draw, time) {
         }
 
         // Draw dream path
-        draw.trace(lastPoint, p);
+        scene.trace(lastPoint, p);
         lastPoint = p;
 
         // Update color along dream path to show emotional shifts
@@ -309,7 +309,7 @@ function program(pen, draw, time) {
       p.z += distortion;
 
       // Draw boundary point
-      draw.dot(p);
+      scene.dot(p);
 
       // Connect some boundary points (dream associations)
       if (i % 5 === 0) {
@@ -323,7 +323,7 @@ function program(pen, draw, time) {
           z: radius * Math.sin(phi2) * Math.cos(theta2),
         };
 
-        draw.trace(p, p2);
+        scene.trace(p, p2);
       }
     }
 
@@ -511,7 +511,7 @@ function program(pen, draw, time) {
       // Draw the fragment - just a point or a brief trace
       if (Math.random() < 0.7) {
         // Simple point
-        draw.dot(position);
+        scene.dot(position);
       } else {
         // Brief line trace in a random direction
         const angle1 = Math.random() * THETA * 2;
@@ -530,7 +530,7 @@ function program(pen, draw, time) {
           z: position.z + direction.z,
         };
 
-        draw.trace(position, end);
+        scene.trace(position, end);
       }
 
       pen.pop();
