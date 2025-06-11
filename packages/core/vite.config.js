@@ -17,7 +17,6 @@ export default defineConfig({
       formats: ["es", "umd"],
     },
 
-    // Rollup-specific tweaks
     rollupOptions: {
       // Do not bundle three.js
       external: ["three"],
@@ -31,12 +30,10 @@ export default defineConfig({
       },
     },
 
-    // Generate sourcemaps for debugging
     sourcemap: true,
   },
 
   worker: {
-    // Ensure any web-worker bundles stay ESM
     format: "es",
   },
 });

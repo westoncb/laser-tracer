@@ -1,0 +1,7 @@
+# Ignore development tools and configs
+.vscode/
+.idea/
+*.log
+
+# Ignore local dependencies
+node_modules/

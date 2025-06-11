@@ -1,33 +1,46 @@
 {
   "name": "@laser-tracer/core",
-  "version": "1.0.0",
-  "private": false,
-  "main": "./src/index.js",
+  "version": "0.1.0",
+  "description": "A real-time 3D engine for creating time-decaying volumetric light drawings that mimic phosphor vector monitors.",
+  "author": "Weston C. Beecroft <westoncb@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/westoncb/laser-tracer.git"
+  },
   "type": "module",
-  "description": "",
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.10.0",
+  "main": "./dist/laser-tracer-core.umd.js",
+  "module": "./dist/laser-tracer-core.es.js",
+  "exports": {
+    ".": {
+      "import": "./dist/laser-tracer-core.es.js",
+      "require": "./dist/laser-tracer-core.umd.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "dev": "vite",
     "build": "vite build",
-    "dev": "vite dev"
+    "prepublishOnly": "pnpm build"
+  },
+  "peerDependencies": {
+    "three": ">=0.160.0 <0.177.0"
   },
   "devDependencies": {
     "vite": "^6.3.1",
     "three": "^0.176.0"
   },
-  "files": [
-    "dist/",
-    "src/assets/"
+  "keywords": [
+    "laser",
+    "tracer",
+    "vector",
+    "graphics",
+    "threejs",
+    "particles",
+    "animation",
+    "turtle-graphics"
   ],
-  "exports": {
-    ".": {
-      "import": "./src/index.js",
-      "require": "./src/index.js"
-    }
-  },
-  "peerDependencies": {
-    "three": "^0.176.0"
-  }
+  "packageManager": "pnpm@10.10.0"
 }
