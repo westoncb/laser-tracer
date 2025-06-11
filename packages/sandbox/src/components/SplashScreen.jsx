@@ -2,7 +2,7 @@
    SplashScreen.jsx
 -------------------------------------------------------------------*/
 import { useState, useEffect } from "react";
-import logoUrl from "../assets/laser-tracer-patch-sm.png";
+import logoUrl from "../../assets/laser-tracer-patch-sm.png";
 
 export default function SplashScreen({
   ready, // true when Monaco + QuickJS are ready
