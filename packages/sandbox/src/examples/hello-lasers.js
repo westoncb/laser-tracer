@@ -48,8 +48,8 @@ function applyStyle(pen, style) {
   return pen;
 }
 
-function program(pen, d, time) {
-  setCamera({ x: 4, y: 3, z: 25 }, { x: 4, y: -1, z: 0 });
+function program(pen, scene, time) {
+  scene.setCamera({ x: 4, y: 3, z: 25 }, { x: 4, y: -1, z: 0 });
 
   // Define beam colors and positions
   const beams = [

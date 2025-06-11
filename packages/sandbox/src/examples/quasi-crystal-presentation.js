@@ -155,7 +155,7 @@ function drawAtom(pen, pos, radius, style, label = null) {
       fuzz: 1,
     });
 
-    draw.text(
+    scene.text(
       label,
       {
         x: pos.x,
@@ -699,9 +699,9 @@ function drawSlide1(pen, time, transitionFactor) {
     residue: 1.0,
   });
 
-  draw.text("QUASICRYSTALS", { x: 0, y: 18, z: 0 }, 2);
+  scene.text("QUASICRYSTALS", { x: 0, y: 18, z: 0 }, 2);
   pen.dotSize(3);
-  draw.text("ORDERED BUT APERIODIC", { x: 0, y: 15, z: 0 }, 1);
+  scene.text("ORDERED BUT APERIODIC", { x: 0, y: 15, z: 0 }, 1);
 
   // Draw simple 2D Penrose tiling
   const { vertices, edges } = generatePenroseTiling(2);
@@ -766,9 +766,9 @@ function drawSlide1(pen, time, transitionFactor) {
     fuzz: 1,
   });
 
-  draw.text("ORDERED BUT NEVER REPEATS", { x: 0, y: -19, z: 0 }, 1);
-  draw.text("HAS FORBIDDEN SYMMETRIES", { x: 0, y: -21, z: 0 }, 1);
-  draw.text("DISCOVERED IN 1982", { x: 0, y: -23, z: 0 }, 1);
+  scene.text("ORDERED BUT NEVER REPEATS", { x: 0, y: -19, z: 0 }, 1);
+  scene.text("HAS FORBIDDEN SYMMETRIES", { x: 0, y: -21, z: 0 }, 1);
+  scene.text("DISCOVERED IN 1982", { x: 0, y: -23, z: 0 }, 1);
 
   pen.pop();
 }
@@ -789,7 +789,7 @@ function drawSlide2(pen, time, transitionFactor) {
     residue: 1.0,
   });
 
-  draw.text("REAL SPACE TO RECIPROCAL SPACE", { x: 0, y: 18, z: 0 }, 1.5);
+  scene.text("REAL SPACE TO RECIPROCAL SPACE", { x: 0, y: 18, z: 0 }, 1.5);
 
   // Draw real space atoms on the left
   applyStyle(pen, {
@@ -799,7 +799,7 @@ function drawSlide2(pen, time, transitionFactor) {
     fuzz: 2,
   });
 
-  draw.text("REAL SPACE", { x: -15, y: 12, z: 0 }, 1);
+  scene.text("REAL SPACE", { x: -15, y: 12, z: 0 }, 1);
 
   // Draw simple atoms arrangement
   const atomPositions = [];
@@ -836,7 +836,7 @@ function drawSlide2(pen, time, transitionFactor) {
     fuzz: 2,
   });
 
-  draw.text("RECIPROCAL SPACE", { x: 15, y: 12, z: 0 }, 1);
+  scene.text("RECIPROCAL SPACE", { x: 15, y: 12, z: 0 }, 1);
 
   // Draw diffraction pattern
   const { points, intensities } = generateDiffractionPattern(15, 0, 5);
@@ -870,7 +870,7 @@ function drawSlide2(pen, time, transitionFactor) {
     },
   );
 
-  draw.text("FOURIER TRANSFORM", { x: 0, y: 3, z: 0 }, 0.8);
+  scene.text("FOURIER TRANSFORM", { x: 0, y: 3, z: 0 }, 0.8);
 
   // Explanation text
   applyStyle(pen, {
@@ -880,11 +880,11 @@ function drawSlide2(pen, time, transitionFactor) {
     fuzz: 1,
   });
 
-  draw.text("ELECTRON DENSITY", { x: -15, y: -12, z: 0 }, 0.8);
-  draw.text("DIFFRACTION PATTERN", { x: 15, y: -12, z: 0 }, 0.8);
+  scene.text("ELECTRON DENSITY", { x: -15, y: -12, z: 0 }, 0.8);
+  scene.text("DIFFRACTION PATTERN", { x: 15, y: -12, z: 0 }, 0.8);
 
-  draw.text("RECIPROCAL LATTICE HAS", { x: 0, y: -16, z: 0 }, 1);
-  draw.text("FORBIDDEN SYMMETRIES", { x: 0, y: -18, z: 0 }, 1);
+  scene.text("RECIPROCAL LATTICE HAS", { x: 0, y: -16, z: 0 }, 1);
+  scene.text("FORBIDDEN SYMMETRIES", { x: 0, y: -18, z: 0 }, 1);
 
   pen.pop();
 }
@@ -905,7 +905,7 @@ function drawSlide3(pen, time, transitionFactor) {
     residue: 1.0,
   });
 
-  draw.text("HIGHER DIMENSIONAL ORDER", { x: 0, y: 18, z: 0 }, 1.5);
+  scene.text("HIGHER DIMENSIONAL ORDER", { x: 0, y: 18, z: 0 }, 1.5);
 
   // Draw the projection visualization
   drawProjection(pen, time);
@@ -918,8 +918,8 @@ function drawSlide3(pen, time, transitionFactor) {
     fuzz: 1,
   });
 
-  draw.text("QUASICRYSTAL IS A 3D SLICE", { x: 0, y: -19, z: 0 }, 1);
-  draw.text("OF 6D PERIODIC LATTICE", { x: 0, y: -21, z: 0 }, 1);
+  scene.text("QUASICRYSTAL IS A 3D SLICE", { x: 0, y: -19, z: 0 }, 1);
+  scene.text("OF 6D PERIODIC LATTICE", { x: 0, y: -21, z: 0 }, 1);
 
   // Label dimensions
   applyStyle(pen, {
@@ -929,8 +929,8 @@ function drawSlide3(pen, time, transitionFactor) {
     fuzz: 1,
   });
 
-  draw.text("6D SPACE", { x: 0, y: 8, z: 10 }, 1);
-  draw.text("3D PROJECTION", { x: 0, y: -8, z: -5 }, 1);
+  scene.text("6D SPACE", { x: 0, y: 8, z: 10 }, 1);
+  scene.text("3D PROJECTION", { x: 0, y: -8, z: -5 }, 1);
 
   pen.pop();
 }
@@ -951,7 +951,7 @@ function drawSlide4(pen, time, transitionFactor) {
     residue: 1.0,
   });
 
-  draw.text("DIFFRACTION PATTERN INDEXING", { x: 0, y: 18, z: 0 }, 1.5);
+  scene.text("DIFFRACTION PATTERN INDEXING", { x: 0, y: 18, z: 0 }, 1.5);
 
   // Draw diffraction pattern with indices
   const { points, intensities } = generateDiffractionPattern(0, 0, 5);
@@ -994,7 +994,7 @@ function drawSlide4(pen, time, transitionFactor) {
       // Format as H1..H6 indices
       const indices = `${index1}${index2}${index3}${index4}${index5}${index6}`;
 
-      draw.text(
+      scene.text(
         indices,
         {
           x: points[i].x + 1.5,
@@ -1014,8 +1014,8 @@ function drawSlide4(pen, time, transitionFactor) {
     fuzz: 1,
   });
 
-  draw.text("INDEXED WITH 6 INTEGERS", { x: 0, y: -21, z: 0 }, 1);
-  draw.text("INSTEAD OF 3 HKL INDICES", { x: 0, y: -23, z: 0 }, 1);
+  scene.text("INDEXED WITH 6 INTEGERS", { x: 0, y: -21, z: 0 }, 1);
+  scene.text("INSTEAD OF 3 HKL INDICES", { x: 0, y: -23, z: 0 }, 1);
 
   // Visual representation of 6D basis vectors
   const basisCenter = { x: 0, y: -5, z: 0 };
@@ -1049,7 +1049,7 @@ function drawSlide4(pen, time, transitionFactor) {
     );
 
     // Label each basis vector
-    draw.text(
+    scene.text(
       `E${i + 1}`,
       {
         x: basisCenter.x + Math.cos(angle) * (basisRadius + 1.5),
@@ -1079,7 +1079,7 @@ function drawSlide5(pen, time, transitionFactor) {
     residue: 1.0,
   });
 
-  draw.text("SOLVING THE STRUCTURE", { x: 0, y: 18, z: 0 }, 1.5);
+  scene.text("SOLVING THE STRUCTURE", { x: 0, y: 18, z: 0 }, 1.5);
 
   // Draw workflow diagram
   const workflowX = 0;
@@ -1122,7 +1122,7 @@ function drawSlide5(pen, time, transitionFactor) {
     );
 
     // Draw step text
-    draw.text(
+    scene.text(
       steps[i],
       { x: workflowX, y: boxY - boxHeight / 2 - 0.5, z: 0 },
       0.8,
@@ -1184,8 +1184,8 @@ function drawSlide5(pen, time, transitionFactor) {
 
   pen.colorHex(0xff11ff);
 
-  draw.text("SAME PIPELINE AS CRYSTALS", { x: 0, y: -25, z: 0 }, 1);
-  draw.text("BUT WITH HIGHER DIMENSIONS", { x: 0, y: -27, z: 0 }, 1);
+  scene.text("SAME PIPELINE AS CRYSTALS", { x: 0, y: -25, z: 0 }, 1);
+  scene.text("BUT WITH HIGHER DIMENSIONS", { x: 0, y: -27, z: 0 }, 1);
 
   pen.pop();
 }
@@ -1250,13 +1250,13 @@ function drawCurrentSlide(pen, time, slideIndex, t) {
 }
 
 // Main program function
-function program(pen, draw, time) {
+function program(pen, scene, time) {
   // Initialize on first frame
   if (frameCount === 0) {
-    setBGColor(0x000005); // Almost black background
+    scene.setBGColor(0x000005); // Almost black background
 
     // Set fixed camera position for presentation view
-    setCamera({ x: 0, y: 0, z: 70 }, { x: 0, y: 0, z: 0 });
+    scene.setCamera({ x: 0, y: 0, z: 70 }, { x: 0, y: 0, z: 0 });
   }
 
   // Calculate which slide to show

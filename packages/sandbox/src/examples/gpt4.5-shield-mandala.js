@@ -1,8 +1,8 @@
 let BOOT = true;
 
-function program(pen, d, time) {
+function program(pen, scene, time) {
   if (BOOT) {
-    setCamera({ x: 0, y: 150, z: 0 }, { x: 0, y: 0, z: 0 });
+    scene.setCamera({ x: 0, y: 150, z: 0 }, { x: 0, y: 0, z: 0 });
     BOOT = false;
   }
 

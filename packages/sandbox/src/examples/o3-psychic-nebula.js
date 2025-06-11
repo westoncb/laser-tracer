@@ -137,12 +137,12 @@ function platonicEdges(type, r) {
 }
 
 //// ---------- main ----------
-function program(pen, draw, time) {
+function program(pen, scene, time) {
   if (first) {
-    setBGColor(0x000006);
+    scene.setBGColor(0x000006);
     initLorenz();
     first = false;
-    setCamera({ x: 0, y: 0, z: 48 }, { x: 0, y: 0, z: 0 });
+    scene.setCamera({ x: 0, y: 0, z: 48 }, { x: 0, y: 0, z: 0 });
   }
 
   //// 0 · gentle global spin

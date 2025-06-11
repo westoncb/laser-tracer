@@ -13,8 +13,8 @@ let activeModule = "oscillator";
 
 // Synthesizer color palette
 const SYNTH_COLORS = {
-  PANEL: { r: 0.0, g: 0.1, b: 0.15 }, // Dark blue-gray panel
-  MODULE: { r: 0.05, g: 0.15, b: 0.2 }, // Module background
+  PANEL: { r: 0.2, g: 0.3, b: 0.35 }, // Dark blue-gray panel
+  MODULE: { r: 0.15, g: 0.25, b: 0.3 }, // Module background
   KNOB: { r: 0.8, g: 0.8, b: 0.9 }, // Silver knobs
   JACK: { r: 0.7, g: 0.7, b: 0.8 }, // Silver jacks
   LABEL: { r: 0, g: 0.8, b: 0.3 }, // Green labels
@@ -59,7 +59,7 @@ function drawModule(pen, x, y, width, height, title, color) {
 
   // Module panel
   pen.colorRGB(color.r, color.g, color.b);
-  pen.dotSize(3).traceGap(0.15).fuzz(2, 0.05).residue(0.6);
+  pen.dotSize(6).traceGap(0.15).fuzz(0).residue(0.6);
 
   // Panel outline
   const panelPoints = [
@@ -113,7 +113,7 @@ function drawModule(pen, x, y, width, height, title, color) {
     SYNTH_COLORS.LABEL.g,
     SYNTH_COLORS.LABEL.b,
   );
-  draw.text(title, { x: x + width / 2, y: y + 3, z: 0 }, 1.5);
+  scene.text(title, { x: x + width / 2, y: y + 3, z: 0 }, 1.5);
 
   pen.pop();
 }
@@ -170,7 +170,7 @@ function drawKnob(pen, x, y, label, value, isActive) {
     SYNTH_COLORS.LABEL.g,
     SYNTH_COLORS.LABEL.b,
   );
-  draw.text(label, { x: x, y: y + knobRadius + 1.5, z: 0 }, 0.9);
+  scene.text(label, { x: x, y: y + knobRadius + 1.5, z: 0 }, 0.9);
 
   // Draw value arc
   pen.colorRGB(0.3, 0.8, 1);
@@ -257,7 +257,7 @@ function drawJack(pen, x, y, label, isConnected, isActive) {
     SYNTH_COLORS.LABEL.g,
     SYNTH_COLORS.LABEL.b,
   );
-  draw.text(label, { x: x, y: y + jackRadius + 1.2, z: 0 }, 0.8);
+  scene.text(label, { x: x, y: y + jackRadius + 1.2, z: 0 }, 0.8);
 
   pen.pop();
 }
@@ -353,7 +353,7 @@ function drawOscillator(pen, x, y, isActive) {
     SYNTH_COLORS.LABEL.g,
     SYNTH_COLORS.LABEL.b,
   );
-  draw.text("WAVEFORM", { x: x + width / 2, y: y + 6, z: 0 }, 1);
+  scene.text("WAVEFORM", { x: x + width / 2, y: y + 6, z: 0 }, 1);
 
   // Draw waveform options
   const waveforms = ["SINE", "SQUARE", "SAW", "TRIANGLE"];
@@ -388,7 +388,7 @@ function drawOscillator(pen, x, y, isActive) {
 
     // Waveform label
     pen.colorRGB(waveColors[i].r, waveColors[i].g, waveColors[i].b);
-    draw.text(waveforms[i], { x: waveX, y: waveY, z: 0 }, 0.8);
+    scene.text(waveforms[i], { x: waveX, y: waveY, z: 0 }, 0.8);
   }
 
   // Draw knobs
@@ -439,7 +439,7 @@ function drawFilter(pen, x, y, isActive) {
     SYNTH_COLORS.LABEL.g,
     SYNTH_COLORS.LABEL.b,
   );
-  draw.text("FILTER TYPE", { x: x + width / 2, y: y + 6, z: 0 }, 1);
+  scene.text("FILTER TYPE", { x: x + width / 2, y: y + 6, z: 0 }, 1);
 
   // Draw filter options
   const filterTypes = ["LP", "BP", "HP"];
@@ -477,7 +477,7 @@ function drawFilter(pen, x, y, isActive) {
       SYNTH_COLORS.FILTER.g,
       SYNTH_COLORS.FILTER.b,
     );
-    draw.text(filterTypes[i], { x: filterX, y: filterY, z: 0 }, 0.8);
+    scene.text(filterTypes[i], { x: filterX, y: filterY, z: 0 }, 0.8);
   }
 
   // Draw knobs
@@ -586,7 +586,7 @@ function drawLFO(pen, x, y, isActive) {
     SYNTH_COLORS.LABEL.g,
     SYNTH_COLORS.LABEL.b,
   );
-  draw.text("SHAPE", { x: x + width / 2, y: y + 6, z: 0 }, 1);
+  scene.text("SHAPE", { x: x + width / 2, y: y + 6, z: 0 }, 1);
 
   // Draw LFO shapes
   const lfoShapes = ["SINE", "TRI", "SQR", "S/H"];
@@ -620,7 +620,7 @@ function drawLFO(pen, x, y, isActive) {
 
     // Shape label
     pen.colorRGB(SYNTH_COLORS.SINE.r, SYNTH_COLORS.SINE.g, SYNTH_COLORS.SINE.b);
-    draw.text(lfoShapes[i], { x: shapeX, y: shapeY, z: 0 }, 0.8);
+    scene.text(lfoShapes[i], { x: shapeX, y: shapeY, z: 0 }, 0.8);
   }
 
   // Draw knobs
@@ -678,7 +678,7 @@ function drawAmplifier(pen, x, y, isActive) {
     SYNTH_COLORS.LABEL.g,
     SYNTH_COLORS.LABEL.b,
   );
-  draw.text("OUTPUT LEVEL", { x: x + width / 2, y: y + 6, z: 0 }, 1);
+  scene.text("OUTPUT LEVEL", { x: x + width / 2, y: y + 6, z: 0 }, 1);
 
   // VU meter background
   pen.colorRGB(0.1, 0.1, 0.15);
@@ -1051,7 +1051,7 @@ function drawEnvelopeShape(
   );
   pen.dotSize(1.5).fuzz(1, 0.02);
 
-  draw.text(
+  scene.text(
     "A",
     {
       x: x - width / 2 + (attackTime * width) / 2,
@@ -1060,7 +1060,7 @@ function drawEnvelopeShape(
     },
     0.7,
   );
-  draw.text(
+  scene.text(
     "D",
     {
       x: x - width / 2 + (attackTime + decayTime / 2) * width,
@@ -1069,7 +1069,7 @@ function drawEnvelopeShape(
     },
     0.7,
   );
-  draw.text(
+  scene.text(
     "S",
     {
       x: x - width / 2 + (attackTime + decayTime + sustainTime / 2) * width,
@@ -1078,7 +1078,7 @@ function drawEnvelopeShape(
     },
     0.7,
   );
-  draw.text(
+  scene.text(
     "R",
     {
       x:
@@ -1106,7 +1106,7 @@ function drawSynthTitle(pen, time) {
   const pulse = 0.9 + Math.sin(time * 3) * 0.1;
   pen.colorRGB(0, 0.9 * pulse, 0.5 * pulse);
 
-  draw.text("VECTOR SYNTHESIZER", { x: 0, y: 30, z: 10 }, 3);
+  scene.text("VECTOR SYNTHESIZER", { x: 0, y: 30, z: 10 }, 3);
 
   // Label system status
   pen.colorRGB(
@@ -1119,7 +1119,7 @@ function drawSynthTitle(pen, time) {
   // Clock speed
   const clockPulse = Math.sin(time * 10) > 0;
   pen.colorRGB(0, 0.7, clockPulse ? 0.9 : 0.3);
-  draw.text(
+  scene.text(
     "CLOCK: " + (120 * (0.8 + knobValues[0] * 0.4)).toFixed(1) + " BPM",
     { x: -45, y: 25, z: 10 },
     1,
@@ -1127,25 +1127,25 @@ function drawSynthTitle(pen, time) {
 
   // Current patch
   pen.colorRGB(0, 0.8, 0.4);
-  draw.text("PATCH: VECTOR PULSE 2.7", { x: 0, y: 25, z: 10 }, 1);
+  scene.text("PATCH: VECTOR PULSE 2.7", { x: 0, y: 25, z: 10 }, 1);
 
   // System status
   const recPulse = Math.sin(time * 2) > 0;
   pen.colorRGB(recPulse ? 0.9 : 0.3, 0, 0);
-  draw.text("REC", { x: 45, y: 25, z: 10 }, 1);
+  scene.text("REC", { x: 45, y: 25, z: 10 }, 1);
 
   pen.pop();
 }
 
 // Main program function
-function program(pen, draw, time) {
+function program(pen, scene, time) {
   // Initialize on first frame
   if (frameCount === 0) {
-    setBGColor(0x000408); // Deep blue-black background
+    scene.setBGColor(0x000408); // Deep blue-black background
     initializeSynth();
 
     // Position camera for a nice view
-    setCamera({ x: 0, y: 0, z: 180 }, { x: -8, y: -20, z: 0 });
+    scene.setCamera({ x: 0, y: 0, z: 180 }, { x: -8, y: -20, z: 0 });
   }
 
   // Update animation variables
@@ -1350,7 +1350,7 @@ function drawKeyboard(pen, x, y, width, height) {
     // Add key number labels
     if (i % 7 === 0) {
       pen.colorRGB(0.3, 0.3, 0.4);
-      draw.text(
+      scene.text(
         "C" + Math.floor(i / 7 + 3),
         { x: keyX + whiteKeyWidth / 2, y: y + height - 2, z: 0 },
         0.8,

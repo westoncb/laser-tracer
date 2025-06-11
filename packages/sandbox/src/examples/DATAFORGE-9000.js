@@ -257,12 +257,12 @@ function drawTerminalCase(pen) {
 
   // Draw manufacturer details
   applyMaterial(pen, MATERIALS.INDICATOR);
-  draw.text(
+  scene.text(
     "DATAFORGE-9000",
     { x: -15, y: 5, z: dimensions.depth / 2 - 4.5 },
     1.5,
   );
-  draw.text(
+  scene.text(
     "QUANTUM DYNAMICS CORP",
     { x: -12, y: 3, z: dimensions.depth / 2 - 4.5 },
     0.9,
@@ -270,7 +270,7 @@ function drawTerminalCase(pen) {
 
   // Model details
   applyMaterial(pen, MATERIALS.INDICATOR);
-  draw.text(
+  scene.text(
     "SN: QD-9284-B",
     { x: dimensions.width / 2 - 10, y: 1, z: dimensions.depth / 2 - 1 },
     0.7,
@@ -296,7 +296,7 @@ function drawTerminalCase(pen) {
   pen.polyline(hexPoints, true);
 
   // "QD" inside hexagon
-  draw.text("QD", { x: logoX - 1, y: logoY - 0.5, z: logoZ }, 0.8);
+  scene.text("QD", { x: logoX - 1, y: logoY - 0.5, z: logoZ }, 0.8);
 
   pen.pop();
 }
@@ -502,7 +502,7 @@ function drawScreenHousing(pen, time) {
 
     // LED label
     const labels = ["PWR", "HDD", "NET"];
-    draw.text(labels[i], { x: ledX - 1, y: ledY - 1.2, z: ledZ }, 0.6);
+    scene.text(labels[i], { x: ledX - 1, y: ledY - 1.2, z: ledZ }, 0.6);
   }
 
   // Draw adjustment knobs
@@ -546,7 +546,7 @@ function drawScreenHousing(pen, time) {
 
     // Knob label
     const labels = ["BRT", "CON", "FOC"];
-    draw.text(labels[i], { x: knobX - 1, y: knobY - 1.5, z: knobZ }, 0.6);
+    scene.text(labels[i], { x: knobX - 1, y: knobY - 1.5, z: knobZ }, 0.6);
   }
 
   pen.pop();
@@ -616,7 +616,7 @@ function drawScreenContent(pen, time) {
     const bootProgress = Math.min(bootSequence, 1.0);
 
     // System initialization text
-    draw.text("INITIALIZING SYSTEM", { x: -12, y: 8, z: 0.2 }, 1.2);
+    scene.text("INITIALIZING SYSTEM", { x: -12, y: 8, z: 0.2 }, 1.2);
 
     // Progress bar
     const barWidth = 20;
@@ -645,13 +645,13 @@ function drawScreenContent(pen, time) {
     const messageCount = Math.floor(bootProgress * statusMessages.length);
 
     for (let i = 0; i < messageCount; i++) {
-      draw.text(statusMessages[i], { x: -12, y: 2 - i * 2, z: 0.2 }, 0.9);
+      scene.text(statusMessages[i], { x: -12, y: 2 - i * 2, z: 0.2 }, 0.9);
     }
 
     // If boot almost complete, add 'READY' message
     if (bootProgress > 0.95) {
       applyMaterial(pen, MATERIALS.INDICATOR);
-      draw.text("SYSTEM READY", { x: -6, y: -6, z: 0.2 }, 1.2);
+      scene.text("SYSTEM READY", { x: -6, y: -6, z: 0.2 }, 1.2);
     }
   } else {
     // Main display content - oscilloscope patterns
@@ -679,12 +679,12 @@ function drawScreenContent(pen, time) {
 
       // Pattern info
       applyMaterial(pen, MATERIALS.INDICATOR);
-      draw.text(
+      scene.text(
         "LISSAJOUS PATTERN",
         { x: -10, y: -dims.height / 2 + 2, z: 0.2 },
         1,
       );
-      draw.text(
+      scene.text(
         `A=${a.toFixed(2)} B=${b.toFixed(2)}`,
         { x: -8, y: -dims.height / 2 + 4, z: 0.2 },
         0.8,
@@ -712,13 +712,13 @@ function drawScreenContent(pen, time) {
 
       // Pattern info
       applyMaterial(pen, MATERIALS.INDICATOR);
-      draw.text(
+      scene.text(
         "WAVEFORM ANALYSIS",
         { x: -10, y: -dims.height / 2 + 2, z: 0.2 },
         1,
       );
       const freq = (0.3 + 0.1 * Math.sin(time * 0.2)) * 10;
-      draw.text(
+      scene.text(
         `FREQ=${freq.toFixed(2)}Hz`,
         { x: -8, y: -dims.height / 2 + 4, z: 0.2 },
         0.8,
@@ -766,8 +766,8 @@ function drawScreenContent(pen, time) {
 
       // Pattern info
       applyMaterial(pen, MATERIALS.INDICATOR);
-      draw.text("SPIRAL SCAN", { x: -6, y: -dims.height / 2 + 2, z: 0.2 }, 1);
-      draw.text(
+      scene.text("SPIRAL SCAN", { x: -6, y: -dims.height / 2 + 2, z: 0.2 }, 1);
+      scene.text(
         `TURNS=${spiralTurns.toFixed(1)}`,
         { x: -8, y: -dims.height / 2 + 4, z: 0.2 },
         0.8,
@@ -783,7 +783,7 @@ function drawScreenContent(pen, time) {
     const seconds = sysTime % 60;
     const timeString = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 
-    draw.text(
+    scene.text(
       `SYS: ${timeString}`,
       { x: dims.width / 2 - 10, y: dims.height / 2 - 2, z: 0.2 },
       0.8,
@@ -793,7 +793,7 @@ function drawScreenContent(pen, time) {
     const statusIndicators = ["CPU: NORMAL", "MEM: 87%", "QBT: STABLE"];
 
     for (let i = 0; i < statusIndicators.length; i++) {
-      draw.text(
+      scene.text(
         statusIndicators[i],
         { x: dims.width / 2 - 10, y: dims.height / 2 - 4 - i * 1.5, z: 0.2 },
         0.7,
@@ -804,7 +804,7 @@ function drawScreenContent(pen, time) {
     const showCursor = Math.sin(time * 5) > 0;
 
     applyMaterial(pen, MATERIALS.PHOSPHOR);
-    draw.text(
+    scene.text(
       "CMD>",
       { x: -dims.width / 2 + 2, y: -dims.height / 2 + 2, z: 0.2 },
       0.8,
@@ -872,7 +872,7 @@ function drawControlPanel(pen, time) {
     );
 
     // Function key labels
-    draw.text(`F${i + 1}`, { x: keyX - 0.8, y: keyRowY - 0.6, z: 0.2 }, 0.9);
+    scene.text(`F${i + 1}`, { x: keyX - 0.8, y: keyRowY - 0.6, z: 0.2 }, 0.9);
   }
 
   // Draw large control buttons
@@ -908,7 +908,7 @@ function drawControlPanel(pen, time) {
     );
 
     // Button label
-    draw.text(
+    scene.text(
       button.label,
       { x: button.x - btnWidth / 2 + 0.5, y: button.y - 0.5, z: 0.2 },
       0.9,
@@ -944,7 +944,7 @@ function drawControlPanel(pen, time) {
     const labelX = dialX + Math.cos(angle) * (dialRadius + 1.5);
     const labelY = dialY + Math.sin(angle) * (dialRadius + 1.5);
 
-    draw.text(modes[i], { x: labelX - 1.5, y: labelY - 0.5, z: 0.2 }, 0.7);
+    scene.text(modes[i], { x: labelX - 1.5, y: labelY - 0.5, z: 0.2 }, 0.7);
 
     // Tick marks
     const innerX = dialX + Math.cos(angle) * (dialRadius - 0.5);
@@ -1018,7 +1018,7 @@ function drawControlPanel(pen, time) {
 
   // Labels for status indicators
   applyMaterial(pen, MATERIALS.CONTROLS);
-  draw.text(
+  scene.text(
     "SYSTEM STATUS",
     { x: panelWidth / 2 - 18, y: ledY - 2, z: 0.2 },
     0.8,
@@ -1058,7 +1058,7 @@ function drawControlPanel(pen, time) {
 
   // Port label
   applyMaterial(pen, MATERIALS.CONTROLS);
-  draw.text("DATA I/O", { x: portX - 2.5, y: portY + 1.5, z: 0.2 }, 0.7);
+  scene.text("DATA I/O", { x: portX - 2.5, y: portY + 1.5, z: 0.2 }, 0.7);
 
   pen.pop();
 }
@@ -1253,7 +1253,7 @@ function drawConnectorPanel(pen) {
 
     // Connector label
     applyMaterial(pen, MATERIALS.CONTROLS);
-    draw.text(
+    scene.text(
       conn.label,
       {
         x: conn.x - conn.label.length * 0.3,
@@ -1299,7 +1299,7 @@ function drawConnectorPanel(pen) {
 
   // Caution warning
   applyMaterial(pen, MATERIALS.WARNING);
-  draw.text(
+  scene.text(
     "CAUTION: HIGH VOLTAGE",
     { x: grillX - 8, y: grillY + grillHeight / 2 + 1, z: 0.2 },
     0.7,
@@ -1309,14 +1309,14 @@ function drawConnectorPanel(pen) {
 }
 
 // Main program function
-function program(pen, draw, time) {
+function program(pen, scene, time) {
   // Initialize on first frame
   if (frameCount === 0) {
-    setBGColor(0x000005); // Almost black background
+    scene.setBGColor(0x000005); // Almost black background
     bootSequence = 0;
 
     // Set initial camera position for a good view
-    setCamera({ x: 0, y: 20, z: 80 }, { x: 0, y: 5, z: 0 });
+    scene.setCamera({ x: 0, y: 20, z: 80 }, { x: 0, y: 5, z: 0 });
   }
 
   // Update boot sequence progress

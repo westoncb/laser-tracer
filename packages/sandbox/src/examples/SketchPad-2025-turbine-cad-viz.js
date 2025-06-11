@@ -471,7 +471,7 @@ function drawDimensions(pen) {
   );
 
   // Dimension text
-  draw.text("24.00", { x: 0, y: -20, z: 0 }, 1);
+  scene.text("24.00", { x: 0, y: -20, z: 0 }, 1);
 
   // Diameter dimension
   const radius = 14;
@@ -495,7 +495,7 @@ function drawDimensions(pen) {
   );
 
   // Dimension text with diameter symbol
-  draw.text(
+  scene.text(
     "Ø" + (radius * 2).toFixed(2),
     { x: radius * 0.85, y: radius * 0.85, z: 0 },
     0.8,
@@ -531,7 +531,7 @@ function drawDimensions(pen) {
   );
 
   // Dimension text
-  draw.text("10.00", { x: bladeRoot + bladeLength / 2, y: 17, z: 0 }, 0.8);
+  scene.text("10.00", { x: bladeRoot + bladeLength / 2, y: 17, z: 0 }, 0.8);
 
   pen.pop();
 }
@@ -655,7 +655,7 @@ function drawInfoPanel(pen, time) {
   );
 
   // Panel title
-  draw.text(
+  scene.text(
     "TURBINE ASSEMBLY",
     { x: panelX + 2, y: panelY - 2, z: panelZ },
     1.2,
@@ -687,7 +687,11 @@ function drawInfoPanel(pen, time) {
       applyMaterial(pen, MATERIALS.INTERFACE);
     }
 
-    draw.text(line, { x: panelX + 1, y: panelY - 4 - i * 1.3, z: panelZ }, 0.9);
+    scene.text(
+      line,
+      { x: panelX + 1, y: panelY - 4 - i * 1.3, z: panelZ },
+      0.9,
+    );
   }
 
   // Add system time (blinking separator)
@@ -695,23 +699,22 @@ function drawInfoPanel(pen, time) {
   const timeText = "SYS" + (showColon ? ":" : " ") + time.toFixed(1) + "s";
 
   applyMaterial(pen, MATERIALS.INTERFACE);
-  draw.text(timeText, { x: panelX + 12, y: panelY - 14, z: panelZ }, 0.9);
+  scene.text(timeText, { x: panelX + 12, y: panelY - 14, z: panelZ }, 0.9);
 
   pen.pop();
 }
 
 // Main program
-function program(pen, draw, time) {
+function program(pen, scene, time) {
   // Initialize on first frame
   if (frameCount === 0) {
-    setBGColor(0x000005);
+    scene.setBGColor(0x000005);
 
     // Set camera position for technical view
-    setCamera({ x: 0, y: 10, z: 120 }, { x: 0, y: 0, z: 0 });
+    scene.setCamera({ x: 0, y: 10, z: 120 }, { x: 0, y: 0, z: 0 });
   }
 
   // Track frame timing
-  const deltaTime = frameCount === 0 ? 0 : time - lastRenderTime;
   lastRenderTime = time;
 
   // Calculate rotation based on time
@@ -754,7 +757,7 @@ function program(pen, draw, time) {
 
   // Draw view mode indicator
   applyMaterial(pen, MATERIALS.INTERFACE);
-  draw.text("VIEW: ANALYTICAL", { x: -15, y: 23, z: 0 }, 1.2);
+  scene.text("VIEW: ANALYTICAL", { x: -15, y: 23, z: 0 }, 1.2);
 
   // Draw material legend
   const legendX = 15;
@@ -762,7 +765,7 @@ function program(pen, draw, time) {
   const legendZ = 20;
 
   // Legend title
-  draw.text("MATERIALS", { x: legendX, y: legendY, z: legendZ }, 1);
+  scene.text("MATERIALS", { x: legendX, y: legendY, z: legendZ }, 1);
 
   // Material indicators
   const materials = [MATERIALS.TITANIUM, MATERIALS.STEEL, MATERIALS.CERAMIC];
@@ -781,7 +784,7 @@ function program(pen, draw, time) {
     );
 
     // Label
-    draw.text(
+    scene.text(
       mat.name,
       { x: legendX + 6, y: legendY - 2 - i * 1.5, z: legendZ },
       0.9,

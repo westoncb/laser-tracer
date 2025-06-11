@@ -65,7 +65,7 @@ function drawAnimatedTitle(pen, text, position, size, time, style) {
   pen.fuzz(style.fuzz * glowFactor, style.fuzzSize * glowFactor);
 
   // Draw the text
-  draw.text(text, position, size);
+  scene.text(text, position, size);
 
   pen.pop();
 }
@@ -106,7 +106,7 @@ function drawCodeExample(pen, x, y, z, time) {
     if (
       line.includes("function") ||
       line.includes("pen.") ||
-      line.includes("draw.")
+      line.includes("scene.")
     ) {
       lineColor = COLORS.accent2; // Functions/methods
     } else if (line.includes("//")) {
@@ -126,7 +126,7 @@ function drawCodeExample(pen, x, y, z, time) {
       residue: 0.4,
     });
 
-    draw.text(line, { x, y: lineY, z }, 0.8);
+    scene.text(line, { x, y: lineY, z }, 0.8);
   }
 
   // Highlight current line being typed
@@ -148,11 +148,11 @@ function drawCodeExample(pen, x, y, z, time) {
       residue: 0.8,
     });
 
-    draw.text(partialLine, { x, y: lineY, z }, 0.8);
+    scene.text(partialLine, { x, y: lineY, z }, 0.8);
 
     // Draw cursor
     if (Math.sin(time * 10) > 0) {
-      draw.text(
+      scene.text(
         "_",
         {
           x: x + partialLine.length * 0.8,
@@ -186,7 +186,7 @@ function drawCoordinateSystem(pen, origin, size) {
     false,
   );
 
-  draw.text(
+  scene.text(
     "X",
     {
       x: origin.x + size + 1,
@@ -211,7 +211,7 @@ function drawCoordinateSystem(pen, origin, size) {
     false,
   );
 
-  draw.text(
+  scene.text(
     "Y",
     {
       x: origin.x,
@@ -236,7 +236,7 @@ function drawCoordinateSystem(pen, origin, size) {
     false,
   );
 
-  draw.text(
+  scene.text(
     "Z",
     {
       x: origin.x,
@@ -584,20 +584,20 @@ function drawTransformationDemo(pen, time) {
     fuzz: 1,
   });
 
-  draw.text("YAW PITCH ROLL", { x: 0, y: 15, z: 0 }, 1.2);
+  scene.text("YAW PITCH ROLL", { x: 0, y: 15, z: 0 }, 1.2);
 
   // Draw rotation values
-  draw.text(
+  scene.text(
     "X: " + Math.round(rotX * 57.3) + " DEG",
     { x: -20, y: -5, z: 0 },
     1,
   );
-  draw.text(
+  scene.text(
     "Y: " + Math.round(rotY * 57.3) + " DEG",
     { x: -20, y: -7, z: 0 },
     1,
   );
-  draw.text(
+  scene.text(
     "Z: " + Math.round(rotZ * 57.3) + " DEG",
     { x: -20, y: -9, z: 0 },
     1,
@@ -811,8 +811,8 @@ function drawSectionContent(pen, sectionIndex, time) {
         fuzz: 1,
       });
 
-      draw.text("A REAL TIME PROGRAMMABLE", { x: 0, y: -10, z: 0 }, 1);
-      draw.text("VECTOR GRAPHICS SYSTEM", { x: 0, y: -12, z: 0 }, 1);
+      scene.text("A REAL TIME PROGRAMMABLE", { x: 0, y: -10, z: 0 }, 1);
+      scene.text("VECTOR GRAPHICS SYSTEM", { x: 0, y: -12, z: 0 }, 1);
 
       // Version info
       applyStyle(pen, {
@@ -822,7 +822,7 @@ function drawSectionContent(pen, sectionIndex, time) {
         fuzz: 1,
       });
 
-      draw.text("VERSION 1.0", { x: 0, y: -18, z: 0 }, 0.8);
+      scene.text("VERSION 1.0", { x: 0, y: -18, z: 0 }, 0.8);
       break;
 
     case 1: // DRAW WITH PARTICLES IN 3 DIMENSIONS
@@ -851,7 +851,7 @@ function drawSectionContent(pen, sectionIndex, time) {
         fuzz: 1,
       });
 
-      draw.text("PEN COMMANDS", { x: -20, y: 10, z: 0 }, 1.2);
+      scene.text("PEN COMMANDS", { x: -20, y: 10, z: 0 }, 1.2);
 
       applyStyle(pen, {
         color: COLORS.accent1,
@@ -860,9 +860,9 @@ function drawSectionContent(pen, sectionIndex, time) {
         fuzz: 1,
       });
 
-      draw.text("MOVETO MOVEBY", { x: -20, y: 7, z: 0 }, 1);
-      draw.text("TRACETO TRACEBY", { x: -20, y: 5, z: 0 }, 1);
-      draw.text("DOT", { x: -20, y: 3, z: 0 }, 1);
+      scene.text("MOVETO MOVEBY", { x: -20, y: 7, z: 0 }, 1);
+      scene.text("TRACETO TRACEBY", { x: -20, y: 5, z: 0 }, 1);
+      scene.text("DOT", { x: -20, y: 3, z: 0 }, 1);
 
       applyStyle(pen, {
         color: COLORS.title,
@@ -871,9 +871,9 @@ function drawSectionContent(pen, sectionIndex, time) {
         fuzz: 1,
       });
 
-      draw.text("EVERY SHAPE IS MADE", { x: -20, y: 0, z: 0 }, 0.9);
-      draw.text("OF INDIVIDUAL POINTS", { x: -20, y: -2, z: 0 }, 0.9);
-      draw.text("EMITTED BY THE PEN", { x: -20, y: -4, z: 0 }, 0.9);
+      scene.text("EVERY SHAPE IS MADE", { x: -20, y: 0, z: 0 }, 0.9);
+      scene.text("OF INDIVIDUAL POINTS", { x: -20, y: -2, z: 0 }, 0.9);
+      scene.text("EMITTED BY THE PEN", { x: -20, y: -4, z: 0 }, 0.9);
       break;
 
     case 2: // Colors and Effects
@@ -903,7 +903,7 @@ function drawSectionContent(pen, sectionIndex, time) {
         fuzz: 1,
       });
 
-      draw.text("TRACE ATTRIBUTES", { x: -20, y: 10, z: 0 }, 1.2);
+      scene.text("TRACE ATTRIBUTES", { x: -20, y: 10, z: 0 }, 1.2);
 
       // Draw attribute explanations with examples
       const attributes = [
@@ -931,7 +931,7 @@ function drawSectionContent(pen, sectionIndex, time) {
           fuzz: 1,
         });
 
-        draw.text(attr.name, { x: -21, y: y + 0.5, z: 0 }, 1);
+        scene.text(attr.name, { x: -21, y: y + 0.5, z: 0 }, 1);
 
         // Draw example line showing the attribute
         applyStyle(pen, {
@@ -967,8 +967,8 @@ function drawSectionContent(pen, sectionIndex, time) {
         fuzz: 2,
       });
 
-      draw.text("PARTICLES DECAY OVER TIME", { x: 0, y: -12, z: 0 }, 1);
-      draw.text("EMULATING PHOSPHOR ACTIVATION", { x: 0, y: -14, z: 0 }, 1);
+      scene.text("PARTICLES DECAY OVER TIME", { x: 0, y: -12, z: 0 }, 1);
+      scene.text("EMULATING PHOSPHOR ACTIVATION", { x: 0, y: -14, z: 0 }, 1);
       break;
 
     case 3: // 3D Transformation HIERARCHY
@@ -998,7 +998,7 @@ function drawSectionContent(pen, sectionIndex, time) {
         fuzz: 1,
       });
 
-      draw.text("TRANSFORM COMMANDS", { x: 20, y: 10, z: 0 }, 1.2);
+      scene.text("TRANSFORM COMMANDS", { x: 20, y: 10, z: 0 }, 1.2);
 
       applyStyle(pen, {
         color: COLORS.accent1,
@@ -1007,8 +1007,8 @@ function drawSectionContent(pen, sectionIndex, time) {
         fuzz: 1,
       });
 
-      draw.text("YAW PITCH ROLL", { x: 20, y: 7, z: 0 }, 1);
-      draw.text("PUSH POP", { x: 20, y: 5, z: 0 }, 1);
+      scene.text("YAW PITCH ROLL", { x: 20, y: 7, z: 0 }, 1);
+      scene.text("PUSH POP", { x: 20, y: 5, z: 0 }, 1);
 
       applyStyle(pen, {
         color: COLORS.title,
@@ -1017,9 +1017,9 @@ function drawSectionContent(pen, sectionIndex, time) {
         fuzz: 1,
       });
 
-      draw.text("NESTED COORDINATE", { x: 20, y: 2, z: 0 }, 0.9);
-      draw.text("SYSTEMS ALLOW FOR", { x: 20, y: 0, z: 0 }, 0.9);
-      draw.text("COMPLEX HIERARCHIES", { x: 20, y: -2, z: 0 }, 0.9);
+      scene.text("NESTED COORDINATE", { x: 20, y: 2, z: 0 }, 0.9);
+      scene.text("SYSTEMS ALLOW FOR", { x: 20, y: 0, z: 0 }, 0.9);
+      scene.text("COMPLEX HIERARCHIES", { x: 20, y: -2, z: 0 }, 0.9);
       break;
 
     case 4: // Creative Possibilities
@@ -1108,13 +1108,13 @@ function drawNavigation(pen, currentSection, progress, time) {
 }
 
 // Main program function
-function program(pen, draw, time) {
+function program(pen, scene, time) {
   // Initialize on first frame
   if (frameCount === 0) {
-    setBGColor(0x000005); // Almost black background
+    scene.setBGColor(0x000005); // Almost black background
 
     // Set initial camera position
-    setCamera({ x: 0, y: 15, z: 75 }, { x: 0, y: -5, z: 0 });
+    scene.setCamera({ x: 0, y: 15, z: 75 }, { x: 0, y: -5, z: 0 });
   }
 
   // Calculate current section and progress

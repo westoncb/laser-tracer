@@ -435,25 +435,12 @@ function drawEnergyNodes(pen, params, time) {
 // ────────────────── Main Entry Point ───────────────────────────
 let first = true;
 
-function program(pen, d, time) {
+function program(pen, scene, time) {
   if (first) {
-    setBGColor(0x000812); // Deep blue background
+    scene.setBGColor(0x000812); // Deep blue background
     first = false;
-    setCamera({ x: 0, y: 0, z: 80 }, { x: 0, y: 0, z: 0 });
+    scene.setCamera({ x: 0, y: 0, z: 80 }, { x: 0, y: 0, z: 0 });
   }
-
-  // Dynamic camera movement
-  // const cameraTime = time * 0.2;
-  // const cameraRadius = 60 + Math.sin(cameraTime * 0.7) * 15;
-  // const cameraAzimuth = cameraTime * 15;
-  // const cameraElevation = 30 + Math.sin(cameraTime * 0.5) * 15;
-
-  // orbitCamera(
-  //   { x: 0, y: 0, z: 0 },
-  //   cameraRadius,
-  //   cameraAzimuth,
-  //   cameraElevation
-  // );
 
   // Apply a gentle overall rotation to the structure
   pen.push();

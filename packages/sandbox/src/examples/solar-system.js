@@ -1,18 +1,18 @@
 /* ================================================================
    SOLAR SYSTEM DEMO
    A modern Laser-Tracer implementation showing a sun, planets, and
-   cube frame grid system with 80s-style neon aesthetics
+   cube frame grid system
 ================================================================= */
 
 // First frame initialization flag
 let firstFrame = true;
 
 // Main program entry point - called every frame
-function program(pen, d, time) {
+function program(pen, scene, time) {
   // First-time initialization
   if (firstFrame) {
-    setBGColor(0x000020); // Deep space blue
-    setCamera({ x: 0, y: 0, z: 150 }, { x: 0, y: 0, z: 0 });
+    scene.setBGColor(0x000020); // Deep space blue
+    scene.setCamera({ x: 0, y: 0, z: 150 }, { x: 0, y: 0, z: 0 });
     firstFrame = false;
   }
 

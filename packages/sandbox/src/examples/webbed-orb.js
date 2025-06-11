@@ -1,5 +1,4 @@
-function program(pen, d, time) {
-  //ignore 'd' param--legacy
+function program(pen, scene, time) {
   const R = 30;
   const arms = 7; // number of spikes
 

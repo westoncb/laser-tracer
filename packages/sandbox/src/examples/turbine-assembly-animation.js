@@ -327,12 +327,12 @@ function createTurbineBlade(pen, angle, extension = 0, showHighlight = false) {
   // Add blade label if highlighting
   if (showHighlight && partLabelsVisible) {
     pen.colorRGB(1, 1, 1);
-    draw.text(
+    scene.text(
       "TURBINE BLADE",
       { x: rootDist + bladeLength / 2, y: bladeWidth + 3, z: 0 },
       1,
     );
-    draw.text(
+    scene.text(
       "Ti-6Al-4V ALLOY",
       { x: rootDist + bladeLength / 2, y: bladeWidth + 1.5, z: 0 },
       0.8,
@@ -470,8 +470,8 @@ function drawTurbineHub(pen, shaftExtension = 0, showHighlight = false) {
   // Add hub label if highlighting
   if (showHighlight && partLabelsVisible) {
     pen.colorRGB(1, 1, 1);
-    draw.text("TURBINE HUB", { x: 0, y: hubRadius + 3, z: 0 }, 1);
-    draw.text("INTEGRAL COOLING", { x: 0, y: hubRadius + 1.5, z: 0 }, 0.8);
+    scene.text("TURBINE HUB", { x: 0, y: hubRadius + 3, z: 0 }, 1);
+    scene.text("INTEGRAL COOLING", { x: 0, y: hubRadius + 1.5, z: 0 }, 0.8);
   }
 
   pen.pop();
@@ -717,8 +717,8 @@ function drawTurbineHousing(
   // Add housing label if highlighting
   if (showHighlight && partLabelsVisible) {
     pen.colorRGB(1, 1, 1);
-    draw.text("TURBINE HOUSING", { x: 0, y: housing.midRadius + 2, z: 0 }, 1);
-    draw.text("INCONEL 718", { x: 0, y: housing.midRadius + 0.65, z: 0 }, 0.8);
+    scene.text("TURBINE HOUSING", { x: 0, y: housing.midRadius + 2, z: 0 }, 1);
+    scene.text("INCONEL 718", { x: 0, y: housing.midRadius + 0.65, z: 0 }, 0.8);
   }
 
   pen.pop();
@@ -878,7 +878,7 @@ function drawFloatingLabels(pen, time) {
     );
 
     // Add dimension text
-    draw.text("10.00", { x: bladeRoot + bladeLength / 2, y: 13, z: 5 }, 1);
+    scene.text("10.00", { x: bladeRoot + bladeLength / 2, y: 13, z: 5 }, 1);
 
     // Housing dimension
     const housingLength = 24;
@@ -910,7 +910,7 @@ function drawFloatingLabels(pen, time) {
 
     // Add dimension text
     pen.traceGap(0.1);
-    draw.text("24.00", { x: 0, y: -17, z: 0 }, 1);
+    scene.text("24.00", { x: 0, y: -17, z: 0 }, 1);
   }
 
   // Show diameter dimensions for appropriate phases
@@ -919,7 +919,7 @@ function drawFloatingLabels(pen, time) {
     const midRadius = 14;
 
     pen.colorRGB(1, 0.9, 0.3);
-    draw.text(
+    scene.text(
       "Ø" + (midRadius * 2).toFixed(2),
       { x: midRadius * 0.6, y: midRadius * 0.6, z: 5 },
       1,
@@ -983,19 +983,19 @@ function drawFloatingLabels(pen, time) {
   }
 
   pen.traceGap(0.1);
-  draw.text(statusText, { x: 0, y: 22, z: 0 }, 1.5);
+  scene.text(statusText, { x: 0, y: 22, z: 0 }, 1.5);
 
   // Show part labels when appropriate
   if (partLabelsVisible) {
     // Material labels
     pen.colorRGB(0, 0.9, 0.4);
-    draw.text("TITANIUM ALLOY", { x: -20, y: 18, z: 0 }, 1);
+    scene.text("TITANIUM ALLOY", { x: -20, y: 18, z: 0 }, 1);
 
     pen.colorRGB(0.9, 0.6, 0.1);
-    draw.text("HEAT-RES STEEL", { x: 0, y: 18, z: 0 }, 1);
+    scene.text("HEAT-RES STEEL", { x: 0, y: 18, z: 0 }, 1);
 
     pen.colorRGB(0.2, 0.8, 1.0);
-    draw.text("CERAMIC COMP", { x: 20, y: 18, z: 0 }, 1);
+    scene.text("CERAMIC COMP", { x: 20, y: 18, z: 0 }, 1);
   }
 
   pen.pop();
@@ -1224,13 +1224,13 @@ function drawAssemblyAnimation(pen, time) {
 }
 
 // Main program
-function program(pen, draw, time) {
+function program(pen, scene, time) {
   // Initialize on first frame
   if (frameCount === 0) {
-    setBGColor(0x000005);
+    scene.setBGColor(0x000005);
 
     // Set camera position for technical view
-    setCamera({ x: 0, y: 10, z: 80 }, { x: 0, y: 0, z: 0 });
+    scene.setCamera({ x: 0, y: 10, z: 80 }, { x: 0, y: 0, z: 0 });
   }
 
   // Calculate animation parameters
@@ -1306,7 +1306,7 @@ function program(pen, draw, time) {
     pen.dotSize(4).fuzz(2, 0.05).residue(1.5).traceGap(0.1);
 
     // Draw cut plane indicator
-    draw.text("CUT PLANE", { x: -25, y: 0, z: 0 }, 1);
+    scene.text("CUT PLANE", { x: -25, y: 0, z: 0 }, 1);
     pen.moveBy(6, 0, 0);
 
     // Draw section marker

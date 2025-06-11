@@ -165,7 +165,7 @@ function grid(p) {
 
 //// ── main loop ────────────────────────────────────────────────
 let first = true;
-function program(pen, d, time) {
+function program(pen, scene, time) {
   if (first) {
     setBGColor(0x000010);
     first = false;

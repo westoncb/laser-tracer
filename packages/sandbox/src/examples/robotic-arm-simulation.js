@@ -1007,7 +1007,7 @@ function drawDiagnostics(pen, time) {
 
   // Position interface elements in view space
   // Main status text
-  draw.text(systemStatus, { x: 0, y: 22, z: 0 }, 1.5);
+  scene.text(systemStatus, { x: 0, y: 22, z: 0 }, 1.5);
 
   // Test phase info
   const phaseNames = [
@@ -1022,11 +1022,11 @@ function drawDiagnostics(pen, time) {
 
   // Show current test phase
   if (testPhase < phaseNames.length) {
-    draw.text("TEST: " + phaseNames[testPhase], { x: 0, y: 19, z: 0 }, 1.2);
+    scene.text("TEST: " + phaseNames[testPhase], { x: 0, y: 19, z: 0 }, 1.2);
   }
 
   // Power level indicator
-  draw.text(
+  scene.text(
     "POWER: " + powerLevel.toFixed(1) + "%",
     { x: -20, y: 22, z: 0 },
     1,
@@ -1035,14 +1035,14 @@ function drawDiagnostics(pen, time) {
   // Make power level blink if low
   if (powerLevel < 20 && Math.sin(time * 10) > 0) {
     pen.colorRGB(1, 0.3, 0);
-    draw.text("LOW POWER", { x: -20, y: 20, z: 0 }, 1);
+    scene.text("LOW POWER", { x: -20, y: 20, z: 0 }, 1);
   }
 
   // Show sensor readings
   for (let i = 0; i < sensorReadings.length && i < 5; i++) {
     const reading = sensorReadings[i];
     pen.colorRGB(reading.color.r, reading.color.g, reading.color.b);
-    draw.text(
+    scene.text(
       reading.label + ": " + reading.value,
       { x: -20, y: 17 - i * 2, z: 0 },
       0.8,
@@ -1052,11 +1052,11 @@ function drawDiagnostics(pen, time) {
   // Show diagnostic text
   for (let i = 0; i < diagnosticText.length && i < 3; i++) {
     const text = diagnosticText[i];
-    draw.text(text, { x: 0, y: -20 - i * 2, z: 0 }, 0.8);
+    scene.text(text, { x: 0, y: -20 - i * 2, z: 0 }, 0.8);
   }
 
   // Add time indicator
-  draw.text("T+" + time.toFixed(1) + "s", { x: 20, y: 22, z: 0 }, 1);
+  scene.text("T+" + time.toFixed(1) + "s", { x: 20, y: 22, z: 0 }, 1);
 
   pen.pop();
 }
@@ -1397,14 +1397,14 @@ function updateRobotAnimation(time) {
 }
 
 // Main program
-function program(pen, draw, time) {
+function program(pen, scene, time) {
   time *= 4;
   // Initialize on first frame
   if (frameCount === 0) {
-    setBGColor(0x000005);
+    scene.setBGColor(0x000005);
 
     // Set camera position
-    setCamera({ x: 40, y: 20, z: 40 }, { x: 0, y: 10, z: 0 });
+    scene.setCamera({ x: 40, y: 20, z: 40 }, { x: 0, y: 10, z: 0 });
   }
 
   // Update robot animation based on test phase

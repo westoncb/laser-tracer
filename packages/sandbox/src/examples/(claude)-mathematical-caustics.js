@@ -11,13 +11,13 @@ const SQRT5 = 2.23606797749979;
 
 let BOOT = true;
 
-function program(pen, draw, time) {
+function program(pen, scene, time) {
   if (BOOT) {
-    setCamera({ x: 0, y: 0, z: 40 }, { x: 0, y: 0, z: 0 });
+    scene.setCamera({ x: 0, y: 0, z: 40 }, { x: 0, y: 0, z: 0 });
     BOOT = false;
   }
 
-  setBGColor(0x020204);
+  scene.setBGColor(0x020204);
   const t = time * 0.2;
 
   // Mathematical lens system - identifies interesting regions in space
@@ -125,7 +125,7 @@ function program(pen, draw, time) {
         }
 
         // Draw step
-        draw.trace(lastPoint, p);
+        scene.trace(lastPoint, p);
         lastPoint = p;
 
         // Update color based on position to show mathematical properties
@@ -254,7 +254,7 @@ function program(pen, draw, time) {
         .residue(6)
         .fuzz(12, 1.5);
 
-      draw.dot(p);
+      scene.dot(p);
 
       // Add emanating rays for dramatic effect
       const rays = 6;
@@ -280,7 +280,7 @@ function program(pen, draw, time) {
 
         pen.dotSize(1).traceGap(0.05).residue(3);
 
-        draw.trace(p, end);
+        scene.trace(p, end);
       }
 
       pen.pop();

@@ -46,7 +46,7 @@ function lorenzStep(p, dt) {
 }
 
 /* ============================================================= */
-function program(pen, draw, t) {
+function program(pen, scene, t) {
   /* configure brush once per frame (all calls chain) */
   pen.dotSize(PX_SIZE).residue(RESIDUE).fuzz(FUZZ_N, FUZZ_SIG);
 
@@ -69,7 +69,7 @@ function program(pen, draw, t) {
     pen.colorCubehelix(phase, 0.5, -1.5, gamma);
 
     /* render points, shifted so attractor is centred at origin */
-    draw.dot({ x: p0.x - CENTER.x, y: p0.y - CENTER.y, z: p0.z - CENTER.z });
-    draw.dot({ x: p1.x - CENTER.x, y: p1.y - CENTER.y, z: p1.z - CENTER.z });
+    scene.dot({ x: p0.x - CENTER.x, y: p0.y - CENTER.y, z: p0.z - CENTER.z });
+    scene.dot({ x: p1.x - CENTER.x, y: p1.y - CENTER.y, z: p1.z - CENTER.z });
   }
 }
