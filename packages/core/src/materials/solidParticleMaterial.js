@@ -57,7 +57,7 @@ void main () {
 
 /* ───────────────────────── Fragment ───────────────────────── */
 const fragmentShader = /* glsl */ `
-precision highp float;
+precision mediump float;
 
 uniform sampler2D tFeather;   // soft-edge α mask
 uniform sampler2D uMatcap;    // mat-cap texture
