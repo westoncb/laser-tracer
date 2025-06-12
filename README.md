@@ -10,9 +10,9 @@ This workspace contains two packages:
 ```bash
 pnpm install         # sets up both packages
 
-## Development
-pnpm --filter sandbox dev   # launches Vite dev server for the playground
-
 ## Build
 pnpm --filter @laser-tracer/core build   # emits dist/ bundle via Vite library mode
+
+## Development
+pnpm --filter sandbox dev   # launches Vite dev server for the playground
 ```
