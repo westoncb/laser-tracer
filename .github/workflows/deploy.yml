@@ -23,12 +23,17 @@ jobs:
       # 1. Checkout repo
       - uses: actions/checkout@v4
 
-      # 2. Setup Node + pnpm (via corepack)
-      - name: Setup Node.js and pnpm
+      # 2. Setup pnpm and Node.js
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9 # You can specify a version, or it will use the one from package.json
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: "pnpm" # <-- CHANGE: Use pnpm's lockfile for caching
+          cache: "pnpm"
 
       # 3. Install workspace deps
       - name: Install dependencies
@@ -36,7 +41,7 @@ jobs:
 
       # 4. Build the sandbox AND its dependencies
       - name: Build
-        run: pnpm --filter 'sandbox...' build # <-- CHANGE: Build sandbox and all of its dependencies
+        run: pnpm --filter 'sandbox...' build
 
       # 5. Setup Pages
       - uses: actions/configure-pages@v4
@@ -45,7 +50,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/sandbox/dist # This path remains correct
+          path: packages/sandbox/dist
 
   deploy:
     environment:
