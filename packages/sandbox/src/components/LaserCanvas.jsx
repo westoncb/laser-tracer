@@ -80,12 +80,11 @@ export default function LaserCanvas({
 
   return (
     <div
-      className={`ltc-container ${className ?? ""}`}
+      className={className ?? ""} // Apply the passed className here
       style={{
         display: "flex",
         flexDirection: "column",
-        width: "100%",
-        height: "100%",
+        minHeight: 0, // Ensure it can shrink on mobile
       }}
     >
       {/* ── mode toolbar ─────────────────────────────────────────── */}

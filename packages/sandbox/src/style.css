@@ -1,7 +1,7 @@
 :root {
     --btn-face: #2b2b2b; /* top colour  */
     --btn-edge: #1a1a1a; /* bottom edge */
-    --btn-glint: #3c3c3c; /* top glint   */
+    --btn-glint: #3c3c3c; /* top glint    */
     --btn-text: #e2e2e2;
     --btn-accent: #9ddcff; /* “LLM friendly” */
 }
@@ -17,13 +17,13 @@ body,
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background: #111; /* dark backdrop for lasers   */
+    background: #111; /* dark backdrop for lasers    */
     color: #ddd;
     font-family: system-ui, sans-serif;
 }
 
 /* ================================================================
-   DESKTOP / TABLET  (≥ 768 px)
+   DESKTOP / TABLET  (≥ 768 px)
 ================================================================ */
 .app-root.desktop {
     display: grid;
@@ -45,7 +45,7 @@ body,
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    column-gap: 0.75rem; /* horizontal gap   */
+    column-gap: 0.75rem; /* horizontal gap    */
     row-gap: 0.25rem; /* vertical gap on wrap */
     padding-block: 0.4rem; /* symmetric top/bottom pad */
     padding-inline: 0.75rem;
@@ -118,8 +118,6 @@ body,
     min-width: 0; /* allow shrink */
 }
 
-/* existing rules … */
-
 .canvas-pane canvas {
     flex: 1 1 auto; /* make the canvas itself the flex child */
     width: 100%;
@@ -128,7 +126,7 @@ body,
 }
 
 /* ================================================================
-   PHONE  (< 768 px)
+   PHONE  (< 768 px)
 ================================================================ */
 @media (max-width: 768px) {
     /* stack everything vertically */
@@ -138,12 +136,9 @@ body,
         height: 100%;
     }
 
-    /* left column now just wraps control panel + tabs + (maybe) editor */
-    .left-col {
-        display: flex;
-        flex-direction: column;
+    /* A simple container for the controls and tabs */
+    .phone-header {
         flex: 0 0 auto;
-        min-height: 0;
     }
 
     /* -------- tab bar */
@@ -182,12 +177,7 @@ body,
         display: none;
     }
     .app-root.code-active .canvas-pane {
-        display: none;
-    }
-
-    /* let left column stretch when code pane is visible */
-    .app-root.code-active .left-col {
-        flex: 1 1 auto;
+        display: none !important;
     }
 }
 

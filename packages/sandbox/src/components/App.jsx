@@ -87,6 +87,21 @@ export default function App() {
   };
   const handleTitle = setTitle;
 
+  const controlPanel = (
+    <ControlPanel
+      options={combined}
+      selectedKey={selectedKey}
+      title={title}
+      isUserProgram={sel.user}
+      isDirty={isDirty}
+      onSelect={handleSelect}
+      onNew={handleNew}
+      onTitleChange={handleTitle}
+      onSave={handleSave}
+      onDelete={handleDelete}
+    />
+  );
+
   /* ----- render ----- */
   return (
     <div
@@ -96,43 +111,56 @@ export default function App() {
     >
       <TitleBar onManual={() => setShowManual(true)} />
 
-      <div className="left-col">
-        <ControlPanel
-          options={combined}
-          selectedKey={selectedKey}
-          title={title}
-          isUserProgram={sel.user}
-          isDirty={isDirty}
-          onSelect={handleSelect}
-          onNew={handleNew}
-          onTitleChange={handleTitle}
-          onSave={handleSave}
-          onDelete={handleDelete}
-        />
-
-        {isPhone && <TabBar active={activeTab} onChange={setActiveTab} />}
-
-        <div className="code-pane">
-          <CodeEditor
-            ref={editorRef}
-            source={source}
-            onChange={handleCodeChange}
-            compileErr={compileErr}
-            onEditorReady={() => setMonacoReady(true)}
+      {isPhone ? (
+        <>
+          {/* On phone, controls are grouped at the top */}
+          <div className="phone-header">
+            {controlPanel}
+            <TabBar active={activeTab} onChange={setActiveTab} />
+          </div>
+          <div className="code-pane">
+            <CodeEditor
+              ref={editorRef}
+              source={source}
+              onChange={handleCodeChange}
+              compileErr={compileErr}
+              onEditorReady={() => setMonacoReady(true)}
+            />
+          </div>
+          <LaserCanvas
+            className="canvas-pane"
+            srcCode={source}
+            compileErrCb={setCompileErr}
+            activeProgram={selectedKey}
           />
-        </div>
-      </div>
-
-      <LaserCanvas
-        className="canvas-pane"
-        srcCode={source}
-        compileErrCb={setCompileErr}
-        activeProgram={selectedKey}
-      />
+        </>
+      ) : (
+        <>
+          {/* Desktop layout remains the same */}
+          <div className="left-col">
+            {controlPanel}
+            <div className="code-pane">
+              <CodeEditor
+                ref={editorRef}
+                source={source}
+                onChange={handleCodeChange}
+                compileErr={compileErr}
+                onEditorReady={() => setMonacoReady(true)}
+              />
+            </div>
+          </div>
+          <LaserCanvas
+            className="canvas-pane"
+            srcCode={source}
+            compileErrCb={setCompileErr}
+            activeProgram={selectedKey}
+          />
+        </>
+      )}
 
       <SplashScreen
-        ready={monacoReady} // becomes true when Monaco reports ready
-        minDuration={800} // tweak to taste
+        ready={monacoReady}
+        minDuration={800}
         onHide={() => {
           editorRef.current?.trigger(
             "react",
