@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { System } from "@laser-tracer/core";
 import TracerVM from "../tracerVM";
-import CanvasGuard from "./CanvasGuard.jsx"; // 👈 Import new component
-import YouTubeEmbed from "./YouTubeEmbed.jsx"; // 👈 Import new component
+import CanvasGuard from "./CanvasGuard.jsx";
+import YouTubeEmbed from "./YouTubeEmbed.jsx";
 
 const DEMO_VIDEO_ID = "f7mokiVnEbk";
 
-/* centralised teardown (no changes needed here) */
 function disposeAll(systemRef, vmRef, readyRef, setVmReady, hadErrRef) {
   systemRef.current?.dispose();
+  systemRef.current = null;
   vmRef.current?.dispose();
+  vmRef.current = null;
   readyRef.current = false;
   setVmReady(false);
   hadErrRef.current = false;
@@ -22,12 +23,12 @@ export default function LaserCanvas({
   className,
   renderMode: initialMode = "light",
 }) {
-  /* ---------------------------------------------------------------- UI */
-  const [mode, setMode] = useState(initialMode); // "light" | "solid"
-  // 👇 State to manage what the user sees: the prompt, the canvas, or the video
-  const [userAction, setUserAction] = useState("prompt"); // 'prompt' | 'run' | 'watch_video'
+  const [mode, setMode] = useState(initialMode);
+  // 'prompt', 'run', or 'watch_video'
+  const [view, setView] = useState("prompt");
+  // This tracks the one-time consent, so we don't ask again.
+  const [hasConsented, setHasConsented] = useState(false);
 
-  /* ---------------------------------------------------------- refs/state */
   const mountRef = useRef(null);
   const systemRef = useRef(null);
   const vmRef = useRef(null);
@@ -35,23 +36,24 @@ export default function LaserCanvas({
   const hadErrRef = useRef(false);
   const [vmReady, setVmReady] = useState(false);
 
-  /* -------------------------------------------------- engine bootstrap */
+  // This function is stable and only recreated if its own dependencies change.
   const startEngine = useCallback(async () => {
-    // 🛑 Prevent engine start if user hasn't confirmed
-    if (userAction !== "run" || !mountRef.current) return;
+    // Guard against running if the mount point isn't ready.
+    if (!mountRef.current) return;
 
-    /* 1 · System ----------------------------------------------------- */
+    /* 1 · System */
     const sys = new System();
     systemRef.current = sys;
     sys.init(mountRef.current, { renderMode: mode });
 
     sys.run((pen, scene, t) => {
-      if (readyRef.current && !hadErrRef.current) {
+      // Check if the VM is still valid before ticking.
+      if (vmRef.current && readyRef.current && !hadErrRef.current) {
         vmRef.current.tick(t, pen, scene);
       }
     });
 
-    /* 2 · VM --------------------------------------------------------- */
+    /* 2 · VM */
     const vm = new TracerVM((err) => {
       hadErrRef.current = Boolean(err);
       compileErrCb?.(err);
@@ -60,35 +62,42 @@ export default function LaserCanvas({
     await vm.init();
     readyRef.current = true;
     setVmReady(true);
-  }, [mode, compileErrCb, userAction]); // 👈 userAction is a dependency
+  }, [mode, compileErrCb]);
 
-  /* ---------------------------------------------------------- mount */
+  // Effect to manage the entire lifecycle of the engine.
   useEffect(() => {
-    // Only start the engine if the user has chosen to run
-    if (userAction === "run") {
+    // Only proceed if the user wants to run the simulation.
+    if (view === "run") {
       startEngine();
     }
-    // The cleanup function will run regardless, which is what we want
-    return () => disposeAll(systemRef, vmRef, readyRef, setVmReady, hadErrRef);
-  }, [startEngine, userAction]);
 
-  /* ---------------------------------------------- hot-reload code */
+    // The cleanup function is now the single source of truth for disposal.
+    // It runs when the component unmounts OR when dependencies change before the effect re-runs.
+    return () => {
+      disposeAll(systemRef, vmRef, readyRef, setVmReady, hadErrRef);
+    };
+  }, [activeProgram, mode, view, startEngine]); // It correctly re-runs when the program/mode changes.
+
+  // Effect for hot-reloading code when it changes.
   useEffect(() => {
-    if (vmReady && userAction === "run") {
+    if (vmReady && view === "run") {
       hadErrRef.current = false;
       vmRef.current.loadSource(srcCode);
       systemRef.current?.pen?.moveTo(0, 0, 0);
     }
-  }, [srcCode, vmReady, userAction]);
+  }, [srcCode, vmReady, view]);
 
-  /* ----------------------- restart on activeProgram or mode change */
-  // Now, instead of restarting the engine directly, we reset to the prompt
-  useEffect(() => {
-    setUserAction("prompt");
-    disposeAll(systemRef, vmRef, readyRef, setVmReady, hadErrRef);
-  }, [activeProgram, mode]);
+  // --- Handlers ---
+  const handleConfirm = () => {
+    setHasConsented(true);
+    setView("run");
+  };
 
-  /* ---------------------------------------------------------- render */
+  const handleWatchVideo = () => {
+    setHasConsented(true);
+    setView("watch_video");
+  };
+
   const toolbarH = "1.5rem";
 
   return (
@@ -100,7 +109,6 @@ export default function LaserCanvas({
         minHeight: 0,
       }}
     >
-      {/* ── mode toolbar ─────────────────────────────────────────── */}
       <div
         style={{
           height: toolbarH,
@@ -123,7 +131,7 @@ export default function LaserCanvas({
               alignItems: "center",
               gap: "0.25rem",
               cursor: "pointer",
-              opacity: userAction === "run" ? 1 : 0.5, // Dim if not active
+              opacity: view === "run" ? 1 : 0.5,
             }}
           >
             <input
@@ -133,30 +141,28 @@ export default function LaserCanvas({
               checked={mode === opt}
               onChange={() => setMode(opt)}
               style={{ cursor: "pointer" }}
-              disabled={userAction !== "run"} // Disable until running
+              disabled={view !== "run"}
             />
             {opt.charAt(0).toUpperCase() + opt.slice(1)}
           </label>
         ))}
       </div>
 
-      {/* ── main content area (canvas, guard, or video) ────────── */}
       <div
         style={{ flex: "1 1 auto", position: "relative", background: "#000" }}
       >
-        {userAction === "prompt" && (
+        {/* Guard is now only shown if consent has NOT been given */}
+        {!hasConsented && (
           <CanvasGuard
-            onConfirm={() => setUserAction("run")}
-            onWatchVideo={() => setUserAction("watch_video")}
+            onConfirm={handleConfirm}
+            onWatchVideo={handleWatchVideo}
           />
         )}
 
-        {userAction === "watch_video" && (
-          <YouTubeEmbed videoId={DEMO_VIDEO_ID} />
-        )}
+        {view === "watch_video" && <YouTubeEmbed videoId={DEMO_VIDEO_ID} />}
 
-        {/* The mount point for the canvas now only renders when we run */}
-        {userAction === "run" && (
+        {/* The mount point only exists when the view is 'run' */}
+        {view === "run" && (
           <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         )}
       </div>
