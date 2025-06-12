@@ -24,21 +24,19 @@ jobs:
       - uses: actions/checkout@v4
 
       # 2. Setup Node + pnpm (via corepack)
-      - name: Setup Node.js
+      - name: Setup Node.js and pnpm
         uses: actions/setup-node@v4
         with:
           node-version: 18
-
-      - name: Install pnpm
-        run: npm install -g pnpm
+          cache: "pnpm" # <-- CHANGE: Use pnpm's lockfile for caching
 
       # 3. Install workspace deps
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # 4. Build the sandbox package only
-      - name: Build sandbox
-        run: pnpm --filter sandbox run build
+      # 4. Build the sandbox AND its dependencies
+      - name: Build
+        run: pnpm --filter 'sandbox...' build # <-- CHANGE: Build sandbox and all of its dependencies
 
       # 5. Setup Pages
       - uses: actions/configure-pages@v4
@@ -47,7 +45,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: packages/sandbox/dist # ← sandbox output folder
+          path: packages/sandbox/dist # This path remains correct
 
   deploy:
     environment:
