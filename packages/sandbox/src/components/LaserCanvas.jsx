@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { System } from "@laser-tracer/core";
 import TracerVM from "../tracerVM";
+import CanvasGuard from "./CanvasGuard.jsx"; // 👈 Import new component
+import YouTubeEmbed from "./YouTubeEmbed.jsx"; // 👈 Import new component
 
-/* centralised teardown */
+const DEMO_VIDEO_ID = "f7mokiVnEbk";
+
+/* centralised teardown (no changes needed here) */
 function disposeAll(systemRef, vmRef, readyRef, setVmReady, hadErrRef) {
   systemRef.current?.dispose();
   vmRef.current?.dispose();
@@ -20,6 +24,8 @@ export default function LaserCanvas({
 }) {
   /* ---------------------------------------------------------------- UI */
   const [mode, setMode] = useState(initialMode); // "light" | "solid"
+  // 👇 State to manage what the user sees: the prompt, the canvas, or the video
+  const [userAction, setUserAction] = useState("prompt"); // 'prompt' | 'run' | 'watch_video'
 
   /* ---------------------------------------------------------- refs/state */
   const mountRef = useRef(null);
@@ -31,6 +37,9 @@ export default function LaserCanvas({
 
   /* -------------------------------------------------- engine bootstrap */
   const startEngine = useCallback(async () => {
+    // 🛑 Prevent engine start if user hasn't confirmed
+    if (userAction !== "run" || !mountRef.current) return;
+
     /* 1 · System ----------------------------------------------------- */
     const sys = new System();
     systemRef.current = sys;
@@ -51,40 +60,44 @@ export default function LaserCanvas({
     await vm.init();
     readyRef.current = true;
     setVmReady(true);
-  }, [mode, compileErrCb]);
+  }, [mode, compileErrCb, userAction]); // 👈 userAction is a dependency
 
   /* ---------------------------------------------------------- mount */
   useEffect(() => {
-    startEngine();
+    // Only start the engine if the user has chosen to run
+    if (userAction === "run") {
+      startEngine();
+    }
+    // The cleanup function will run regardless, which is what we want
     return () => disposeAll(systemRef, vmRef, readyRef, setVmReady, hadErrRef);
-  }, [startEngine]);
+  }, [startEngine, userAction]);
 
   /* ---------------------------------------------- hot-reload code */
   useEffect(() => {
-    if (vmReady) {
+    if (vmReady && userAction === "run") {
       hadErrRef.current = false;
       vmRef.current.loadSource(srcCode);
       systemRef.current?.pen?.moveTo(0, 0, 0);
     }
-  }, [srcCode, vmReady]);
+  }, [srcCode, vmReady, userAction]);
 
   /* ----------------------- restart on activeProgram or mode change */
+  // Now, instead of restarting the engine directly, we reset to the prompt
   useEffect(() => {
-    if (!mountRef.current) return;
+    setUserAction("prompt");
     disposeAll(systemRef, vmRef, readyRef, setVmReady, hadErrRef);
-    startEngine();
-  }, [activeProgram, mode, startEngine]);
+  }, [activeProgram, mode]);
 
   /* ---------------------------------------------------------- render */
   const toolbarH = "1.5rem";
 
   return (
     <div
-      className={className ?? ""} // Apply the passed className here
+      className={className ?? ""}
       style={{
         display: "flex",
         flexDirection: "column",
-        minHeight: 0, // Ensure it can shrink on mobile
+        minHeight: 0,
       }}
     >
       {/* ── mode toolbar ─────────────────────────────────────────── */}
@@ -102,7 +115,6 @@ export default function LaserCanvas({
           userSelect: "none",
         }}
       >
-        {/* radio group */}
         {["light", "solid"].map((opt) => (
           <label
             key={opt}
@@ -111,6 +123,7 @@ export default function LaserCanvas({
               alignItems: "center",
               gap: "0.25rem",
               cursor: "pointer",
+              opacity: userAction === "run" ? 1 : 0.5, // Dim if not active
             }}
           >
             <input
@@ -120,14 +133,33 @@ export default function LaserCanvas({
               checked={mode === opt}
               onChange={() => setMode(opt)}
               style={{ cursor: "pointer" }}
+              disabled={userAction !== "run"} // Disable until running
             />
             {opt.charAt(0).toUpperCase() + opt.slice(1)}
           </label>
         ))}
       </div>
 
-      {/* ── canvas mount ─────────────────────────────────────────── */}
-      <div ref={mountRef} style={{ flex: "1 1 auto", position: "relative" }} />
+      {/* ── main content area (canvas, guard, or video) ────────── */}
+      <div
+        style={{ flex: "1 1 auto", position: "relative", background: "#000" }}
+      >
+        {userAction === "prompt" && (
+          <CanvasGuard
+            onConfirm={() => setUserAction("run")}
+            onWatchVideo={() => setUserAction("watch_video")}
+          />
+        )}
+
+        {userAction === "watch_video" && (
+          <YouTubeEmbed videoId={DEMO_VIDEO_ID} />
+        )}
+
+        {/* The mount point for the canvas now only renders when we run */}
+        {userAction === "run" && (
+          <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+        )}
+      </div>
     </div>
   );
 }
