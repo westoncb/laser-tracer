@@ -6,7 +6,8 @@ import { getSolidParticleMaterial } from "./materials/solidParticleMaterial.js";
 import { getLightParticleMaterial } from "./materials/lightParticleMaterial.js";
 
 const PAGE_VERTS = 60_000;
-const PIXEL_SCALE = Math.sqrt(window.devicePixelRatio);
+const dpr = Math.min(window.devicePixelRatio, 2);
+const PIXEL_SCALE = Math.sqrt(dpr);
 
 export default class ParticleSystem extends THREE.Object3D {
   constructor(opts = {}) {
