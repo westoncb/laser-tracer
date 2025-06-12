@@ -64,12 +64,12 @@ function program(pen, scene, time) {
   }
 
   // --- Animate the Camera ---
-  scene.orbitCamera(
-    { x: 0, y: 0, z: 0 },
-    130,
-    time * -3,
-    15 + Math.sin(time * 0.2) * 10,
-  );
+  // scene.orbitCamera(
+  //   { x: 0, y: 0, z: 0 },
+  //   130,
+  //   time * -3,
+  //   15 + Math.sin(time * 0.2) * 10,
+  // );
 
   // --- Draw Static Axon Connections (as faint guides) ---
   pen.push();
@@ -120,8 +120,8 @@ function program(pen, scene, time) {
         .moveTo(neuron.pos.x, neuron.pos.y, neuron.pos.z)
         .colorHex(0xffffff)
         .residue(1)
-        .dotSize(12)
-        .fuzz(60, 4) // Big, energetic burst
+        .dotSize(8)
+        .fuzz(30, 2) // Big, energetic burst
         .dot();
       pen.pop();
 
@@ -157,7 +157,7 @@ function program(pen, scene, time) {
 
   // --- Draw Traveling Signal Pulses ---
   pen.push();
-  pen.colorHex(0xaaccff).residue(2).dotSize(10).fuzz(5, 0.5);
+  pen.colorHex(0xaaccff).residue(2).dotSize(6).fuzz(5, 0.5);
   for (const sig of signals) {
     const fromPos = network.neurons[sig.from].pos;
     const toPos = network.neurons[sig.to].pos;
