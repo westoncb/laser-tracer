@@ -1,5 +1,7 @@
 # Laser‑Tracer Monorepo
 
+Laser Tracer sandbox hosted here: https://westoncb.github.io/laser-tracer/
+
 This workspace contains two packages:
 
 | Package                                        | Description                                                 |
